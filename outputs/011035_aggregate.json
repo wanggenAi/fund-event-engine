@@ -1,0 +1,30 @@
+{
+  "fund_code": "011035",
+  "fund_name": "嘉实中证稀土产业ETF联接A",
+  "view_3d": {
+    "direction": "中性",
+    "reason": "基于最新事件加权后得出。",
+    "confidence": 3
+  },
+  "view_2w": {
+    "direction": "中性",
+    "reason": "近两周叙事未出现明显反转。",
+    "confidence": 3
+  },
+  "view_3m": {
+    "direction": "暂不明确",
+    "reason": "长期判断取决于核心变量是否持续验证。",
+    "confidence": 2
+  },
+  "top_positive_drivers": [],
+  "top_negative_drivers": [],
+  "main_noise_events": [
+    "re-003"
+  ],
+  "core_logic_status": "暂不明确",
+  "key_risks": [
+    "核心定价变量反向波动风险"
+  ],
+  "conflicts_between_events": [],
+  "final_summary": "当前结论为方向性判断，不构成收益率或交易建议。"
+}

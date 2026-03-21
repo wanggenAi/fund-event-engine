@@ -11,20 +11,21 @@
 - 影响路径是什么
 - 对短期、中期、长期中的哪一层影响更大
 
-请输出 JSON：
+请输出 JSON（且只能输出 JSON，不要输出 Markdown）：
 
 {
   "fund_code": "",
   "fund_name": "",
   "related": true,
   "relevance_score": 1,
-  "direction_for_fund": "利好/中性/利空/不明确",
+  "direction_for_fund": "偏利好/中性/偏利空/不明确",
   "impact_horizon": "短期/中期/长期/混合",
   "is_direct_hit": true,
   "affects_core_logic": true,
   "logic_path": "",
   "reasoning": "",
-  "confidence": 1
+  "confidence": 1,
+  "evidence_links": []
 }
 
 字段要求：
@@ -37,6 +38,7 @@
 - logic_path：一句话说明影响链条
 - reasoning：1-3句话解释原因
 - confidence：1-5，表示映射判断把握
+- evidence_links：列出 1 到 3 条本次判断依赖的证据引用（如 doc_id 或事件标题）
 
 规则：
 1. 如果事件只是泛行业热度，但没有真正打到基金主线，不要轻易判定为高相关。
@@ -45,3 +47,4 @@
 4. 宽基基金通常更受流动性、风险偏好、风格轮动影响，单一行业事件未必高相关。
 5. 债券基金和黄金基金要优先从其核心定价变量出发判断，而不是套用股票逻辑。
 6. 如果 related=false，relevance_score 通常应较低，且 direction_for_fund 应谨慎使用“中性”或“不明确”。
+7. 如果证据链条不完整，direction_for_fund 必须为“不明确”。

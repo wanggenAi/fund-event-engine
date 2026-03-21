@@ -1,0 +1,36 @@
+[
+  {
+    "fund_code": "024194",
+    "fund_name": "永赢国证商用卫星通信产业ETF发起联接A",
+    "related": true,
+    "relevance_score": 3,
+    "direction_for_fund": "不明确",
+    "impact_horizon": "短期",
+    "is_direct_hit": false,
+    "affects_core_logic": false,
+    "logic_path": "事件触及基金核心暴露变量，可能通过估值与风险偏好路径传导至基金表现。",
+    "reasoning": "基于基金画像关键词与事件事实的重合度进行映射判断。",
+    "confidence": 2,
+    "evidence_links": [
+      "sat-001",
+      "卫星互联网相关政策发布，鼓励商用应用拓展"
+    ]
+  },
+  {
+    "fund_code": "024194",
+    "fund_name": "永赢国证商用卫星通信产业ETF发起联接A",
+    "related": true,
+    "relevance_score": 3,
+    "direction_for_fund": "偏利空",
+    "impact_horizon": "短期",
+    "is_direct_hit": false,
+    "affects_core_logic": false,
+    "logic_path": "事件触及基金核心暴露变量，可能通过估值与风险偏好路径传导至基金表现。",
+    "reasoning": "基于基金画像关键词与事件事实的重合度进行映射判断。",
+    "confidence": 2,
+    "evidence_links": [
+      "sat-002",
+      "某卫星组网发射任务延期"
+    ]
+  }
+]

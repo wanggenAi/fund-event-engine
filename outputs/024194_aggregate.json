@@ -1,0 +1,32 @@
+{
+  "fund_code": "024194",
+  "fund_name": "永赢国证商用卫星通信产业ETF发起联接A",
+  "view_3d": {
+    "direction": "偏利空",
+    "reason": "基于最新事件加权后得出。",
+    "confidence": 3
+  },
+  "view_2w": {
+    "direction": "偏利空",
+    "reason": "近两周叙事未出现明显反转。",
+    "confidence": 3
+  },
+  "view_3m": {
+    "direction": "逻辑走弱",
+    "reason": "长期判断取决于核心变量是否持续验证。",
+    "confidence": 2
+  },
+  "top_positive_drivers": [],
+  "top_negative_drivers": [
+    "事件触及基金核心暴露变量，可能通过估值与风险偏好路径传导至基金表现。"
+  ],
+  "main_noise_events": [
+    "sat-003"
+  ],
+  "core_logic_status": "逻辑走弱",
+  "key_risks": [
+    "核心定价变量反向波动风险"
+  ],
+  "conflicts_between_events": [],
+  "final_summary": "当前结论为方向性判断，不构成收益率或交易建议。"
+}

@@ -5,29 +5,39 @@
 请只提取高相关事件。
 如果文章没有新增事实，或者主要是评论、观点、情绪化表达，请明确标记为噪音。
 
-请输出 JSON：
+请输出 JSON（且只能输出 JSON，不要输出 Markdown）：
 
 {
-  "event_title": "",
-  "event_date": "",
-  "event_type": "",
-  "main_entities": [],
-  "industry_tags": [],
-  "asset_tags": [],
-  "fact_summary": "",
-  "bullish_bearish": "利好/中性/利空/不明确",
-  "impact_scope": "个股/行业/宽基/债市/黄金/宏观",
-  "impact_horizon": "短期/中期/长期/混合",
-  "importance": 1,
-  "confidence": 1,
-  "is_noise": false,
-  "noise_reason": "",
-  "evidence": []
+  "doc_id": "",
+  "source": "",
+  "publish_time": "",
+  "events": [
+    {
+      "event_title": "",
+      "event_date": "",
+      "event_type": "",
+      "main_entities": [],
+      "industry_tags": [],
+      "asset_tags": [],
+      "fact_summary": "",
+      "bullish_bearish": "利好/中性/利空/不明确",
+      "impact_scope": "个股/行业/宽基/债市/黄金/宏观",
+      "impact_horizon": "短期/中期/长期/混合",
+      "importance": 1,
+      "confidence": 1,
+      "is_noise": false,
+      "noise_reason": "",
+      "evidence": []
+    }
+  ]
 }
 
 字段解释：
+- doc_id：输入文档唯一标识；如果输入未提供，写“未提供”
+- source：来源名称；如果输入未提供，写“未提供”
+- publish_time：发布时间，优先 YYYY-MM-DD；无法判断写“未明确”
 - event_title：用一句话命名事件
-- event_date：事件发生日期；如果不明确，写“未明确”
+- event_date：事件发生日期，优先 YYYY-MM-DD；如果不明确，写“未明确”
 - event_type：只能从以下类别中选：
   政策
   监管
@@ -57,6 +67,7 @@
 规则：
 1. 不要把“市场评论”包装成“真实事件”。
 2. 不要把“热度高”误判成“实质利好”。
-3. 一段文本里如果有多个事件，只提取最重要的1到3个。
+3. 一段文本里如果有多个事件，只提取最重要的1到3个，放在 events 数组内。
 4. 如果证据不足，bullish_bearish 必须为“不明确”。
-5. 如果是噪音，仍然要输出完整 JSON。
+5. 如果整段文本都是噪音，events 仍保留 1 条记录，并将 is_noise=true。
+6. events 数组长度必须在 1 到 3 之间。

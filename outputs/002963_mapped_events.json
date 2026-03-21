@@ -1,0 +1,34 @@
+[
+  {
+    "fund_code": "002963",
+    "fund_name": "易方达黄金ETF联接C",
+    "related": true,
+    "relevance_score": 3,
+    "direction_for_fund": "不明确",
+    "impact_horizon": "短期",
+    "is_direct_hit": true,
+    "affects_core_logic": false,
+    "logic_path": "事件影响黄金定价变量，进而影响黄金ETF联接基金净值方向。",
+    "reasoning": "该事件与基金核心暴露资产相关，方向判断沿用事件本身的定性。",
+    "confidence": 3,
+    "evidence_links": [
+      "央行公布最新黄金储备数据"
+    ]
+  },
+  {
+    "fund_code": "002963",
+    "fund_name": "易方达黄金ETF联接C",
+    "related": true,
+    "relevance_score": 3,
+    "direction_for_fund": "偏利好",
+    "impact_horizon": "短期",
+    "is_direct_hit": true,
+    "affects_core_logic": false,
+    "logic_path": "事件影响黄金定价变量，进而影响黄金ETF联接基金净值方向。",
+    "reasoning": "该事件与基金核心暴露资产相关，方向判断沿用事件本身的定性。",
+    "confidence": 3,
+    "evidence_links": [
+      "美国实际利率回落，美元指数走弱"
+    ]
+  }
+]

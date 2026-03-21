@@ -13,7 +13,7 @@
 2. 近2周
 3. 近3个月
 
-请输出 JSON：
+请输出 JSON（且只能输出 JSON，不要输出 Markdown）：
 
 {
   "fund_code": "",
@@ -52,6 +52,9 @@
 7. top_positive_drivers 和 top_negative_drivers 只保留最重要的1到3条。
 8. confidence 取值 1-5，应根据证据质量、来源可信度、事件一致性综合判断。
 9. final_summary 用2到4句话简要总结，不要夸张。
+10. 输入中的 direction_for_fund 只按以下四类理解：偏利好/中性/偏利空/不明确，不要自行扩展同义词。
+11. 必须优先引用 relevance_score 高且 confidence 高的事件；低相关事件仅可作为辅助信息。
+12. main_noise_events 只保留最具代表性的 1 到 3 条噪音事件标题或 doc_id。
 
 判断倾向时，应优先参考：
 - 相关度高的事件
