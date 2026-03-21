@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Runtime outputs (do not upload analysis data)
+outputs/
+
+# Generated crawl/build docs artifacts
+sample_data/*_docs.json
+sample_data/*_docs.failures.json
+sample_data/*_docs.skipped.json
+sample_data/urls_docs.json
+sample_data/urls_docs.failures.json
+sample_data/urls_docs.skipped.json
+
+# Optional local temp files
+*.log

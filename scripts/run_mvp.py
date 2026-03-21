@@ -204,6 +204,7 @@ def mock_event_extract(doc: Dict[str, Any]) -> Dict[str, Any]:
         "doc_id": doc.get("doc_id", "未提供"),
         "source": doc.get("source", "未提供"),
         "publish_time": doc.get("publish_time", "未明确"),
+        "page_type": doc.get("page_type", ""),
         "events": [
             {
                 "event_title": doc.get("title", "未命名事件"),
@@ -255,6 +256,8 @@ def mock_fund_map(fund_code: str, fund_name: str, fund_profile: str, event: Dict
     logic_path = "事件与基金画像关键词匹配度较低，暂不构成清晰影响链条。"
     if related:
         logic_path = "事件触及基金核心暴露变量，可能通过估值与风险偏好路径传导至基金表现。"
+    page_type = event.get("page_type", "")
+    evidence_type = "background_evidence" if page_type == "static_background" else "event_evidence"
 
     return {
         "fund_code": fund_code,
@@ -272,12 +275,16 @@ def mock_fund_map(fund_code: str, fund_name: str, fund_profile: str, event: Dict
         "reasoning": "基于基金画像关键词与事件事实的重合度进行映射判断。",
         "confidence": 2 if overlap == 0 else (3 if overlap <= 2 else 4),
         "evidence_links": [event.get("doc_id", ""), event.get("event_title", "")],
+        "page_type": page_type,
+        "evidence_type": evidence_type,
     }
 
 
 def mock_aggregate(fund_code: str, fund_name: str, mapped: List[Dict[str, Any]], noise_events: List[str]) -> Dict[str, Any]:
-    view_3d_direction, view_3d_reason, view_3d_conf = evaluate_view_3d(mapped)
-    view_2w_direction, view_2w_reason, view_2w_conf = evaluate_view_2w(mapped)
+    short_term_mapped = [x for x in mapped if x.get("page_type") != "static_background"]
+    background_mapped = [x for x in mapped if x.get("page_type") == "static_background"]
+    view_3d_direction, view_3d_reason, view_3d_conf = evaluate_view_3d(short_term_mapped)
+    view_2w_direction, view_2w_reason, view_2w_conf = evaluate_view_2w(short_term_mapped)
 
     long_logic, long_logic_reason, long_logic_conf = evaluate_long_term_logic(mapped)
 
@@ -290,7 +297,7 @@ def mock_aggregate(fund_code: str, fund_name: str, mapped: List[Dict[str, Any]],
             "confidence": m.get("confidence", 1),
         }
         for m in sorted(
-            [x for x in mapped if x.get("direction_for_fund") == DIR_POSITIVE],
+            [x for x in short_term_mapped if x.get("direction_for_fund") == DIR_POSITIVE],
             key=lambda x: (x.get("relevance_score", 0), x.get("confidence", 0)),
             reverse=True,
         )[:3]
@@ -304,7 +311,7 @@ def mock_aggregate(fund_code: str, fund_name: str, mapped: List[Dict[str, Any]],
             "confidence": m.get("confidence", 1),
         }
         for m in sorted(
-            [x for x in mapped if x.get("direction_for_fund") == DIR_NEGATIVE],
+            [x for x in short_term_mapped if x.get("direction_for_fund") == DIR_NEGATIVE],
             key=lambda x: (x.get("relevance_score", 0), x.get("confidence", 0)),
             reverse=True,
         )[:3]
@@ -331,6 +338,19 @@ def mock_aggregate(fund_code: str, fund_name: str, mapped: List[Dict[str, Any]],
         "main_noise_events": noise_events[:3],
         "positive_event_refs": positive_refs,
         "negative_event_refs": negative_refs,
+        "background_evidence": [
+            {
+                "event_title": x.get("event_title", ""),
+                "logic_path": x.get("logic_path", ""),
+                "relevance_score": x.get("relevance_score", 1),
+                "confidence": x.get("confidence", 1),
+            }
+            for x in sorted(
+                background_mapped,
+                key=lambda y: (y.get("relevance_score", 0), y.get("confidence", 0)),
+                reverse=True,
+            )[:3]
+        ],
         "noise_event_refs": noise_refs,
         "core_logic_status": long_logic,
         "key_risks": ["核心定价变量反向波动风险"],
@@ -465,9 +485,18 @@ def evaluate_long_term_logic(mapped: List[Dict[str, Any]]) -> tuple[str, str, in
 
 
 def build_report(agg: Dict[str, Any]) -> str:
+    def naturalize_event_title(title: str) -> str:
+        cleaned = (title or "").strip()
+        if not cleaned:
+            return "相关事件"
+        if cleaned.startswith("某"):
+            # Reduce placeholder feeling in report wording while keeping semantics neutral.
+            cleaned = cleaned[1:]
+        return cleaned
+
     def fmt_ref(item: Dict[str, Any]) -> str:
         return (
-            f"- {item.get('event_title', '未命名事件')}："
+            f"- {naturalize_event_title(item.get('event_title', ''))}："
             f"{item.get('logic_path', '')}"
             f"（方向：{item.get('direction_for_fund', DIR_UNCLEAR)}，"
             f"相关度：{item.get('relevance_score', 1)}，"
@@ -481,9 +510,9 @@ def build_report(agg: Dict[str, Any]) -> str:
     if not negative_lines:
         negative_lines = [f"- {x}" for x in agg.get("top_negative_drivers", [])[:3]]
     if not positive_lines:
-        positive_lines = ["- 暂无明确利好事件。"]
+        positive_lines = ["- 近期未看到足以形成明确支撑的利好催化。"]
     if not negative_lines:
-        negative_lines = ["- 暂无明确利空事件。"]
+        negative_lines = ["- 当前利空证据有限，尚未形成集中压制。"]
 
     risk_lines = [f"- {x}" for x in agg.get("key_risks", [])[:2]] or ["- 暂无新增风险信号。"]
     noise_note = ""
@@ -560,6 +589,7 @@ def main() -> None:
                 noise_events.append(out.get("doc_id", event.get("event_title", "noise")))
                 continue
             event["doc_id"] = out.get("doc_id", "未提供")
+            event["page_type"] = doc.get("page_type", event.get("page_type", ""))
             extracted_events.append(event)
 
     mapped_results: List[Dict[str, Any]] = []
@@ -574,6 +604,11 @@ def main() -> None:
             mapped = mock_fund_map(args.fund_code, fund_name, fund_profile, event)
         else:
             mapped = call_json_llm(backend, system_prompt, map_prompt, payload)
+        mapped["page_type"] = event.get("page_type", mapped.get("page_type", ""))
+        if "evidence_type" not in mapped:
+            mapped["evidence_type"] = (
+                "background_evidence" if mapped.get("page_type") == "static_background" else "event_evidence"
+            )
         mapped_results.append(mapped)
 
     agg_payload = {

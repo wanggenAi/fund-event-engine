@@ -2,28 +2,35 @@
   "fund_code": "002963",
   "fund_name": "易方达黄金ETF联接C",
   "view_3d": {
-    "direction": "偏利好",
-    "reason": "基于最新事件加权后得出。",
-    "confidence": 3
-  },
-  "view_2w": {
-    "direction": "偏利好",
-    "reason": "近两周叙事未出现明显反转。",
-    "confidence": 3
-  },
-  "view_3m": {
-    "direction": "长期逻辑仍在",
-    "reason": "长期判断取决于核心变量是否持续验证。",
+    "direction": "不明确",
+    "reason": "短期有效信号强度不足，近3日方向暂不明确。",
     "confidence": 2
   },
-  "top_positive_drivers": [
-    "事件影响黄金定价变量，进而影响黄金ETF联接基金净值方向。"
-  ],
+  "view_2w": {
+    "direction": "不明确",
+    "reason": "近两周缺少可用的阶段性信号，方向暂不明确。",
+    "confidence": 2
+  },
+  "view_3m": {
+    "direction": "暂不明确",
+    "reason": "缺少直接触及基金核心主线或中长期变量的证据。",
+    "confidence": 2
+  },
+  "top_positive_drivers": [],
   "top_negative_drivers": [],
-  "main_noise_events": [
-    "doc-003"
+  "main_noise_events": [],
+  "positive_event_refs": [],
+  "negative_event_refs": [],
+  "background_evidence": [
+    {
+      "event_title": "基金详情页 - 易方达基金管理有限公司",
+      "logic_path": "事件触及基金核心暴露变量，可能通过估值与风险偏好路径传导至基金表现。",
+      "relevance_score": 3,
+      "confidence": 2
+    }
   ],
-  "core_logic_status": "长期逻辑仍在",
+  "noise_event_refs": [],
+  "core_logic_status": "暂不明确",
   "key_risks": [
     "核心定价变量反向波动风险"
   ],

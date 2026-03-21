@@ -25,6 +25,36 @@ python3 scripts/run_mvp.py \
 - `<fund_code>_aggregate.json`
 - `<fund_code>_report.txt`
 
+## 最小网页抓取层（URL -> docs.json）
+
+用于把 URL 列表转换为当前 `run_mvp.py` 可直接消费的输入文件。
+
+种子配置文件：
+
+- `configs/source_seeds.yaml`
+
+按基金代码读取种子 URL 并构建 docs：
+
+```bash
+python3 scripts/build_docs_from_urls.py --fund-code 024194
+```
+
+按 URL 文件构建 docs：
+
+```bash
+python3 scripts/build_docs_from_urls.py --urls-file sample_data/024194_urls.txt --output sample_data/024194_docs.json
+```
+
+常用参数：
+
+- `--max-urls 20`：限制抓取 URL 数量
+- `--timeout 15`：单 URL 超时秒数
+
+输出：
+
+- docs：`sample_data/<fund_code>_docs.json`（或 `--output` 指定路径）
+- 失败记录：`*.failures.json`（抓取失败不中断）
+
 ## 可替换 LLM 接口（未写死）
 
 脚本支持两种模式：

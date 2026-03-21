@@ -1,0 +1,57 @@
+funds:
+  "025832":
+    fund_name: "天弘中证电网设备主题指数发起A"
+    urls:
+      - "https://www.nea.gov.cn/"
+      - "https://www.nea.gov.cn/ztzl/"
+      - "https://www.csindex.com.cn/"
+      - "https://www.thfund.com.cn/fundinfo/025832"
+      - "https://www.sgcc.com.cn/"
+
+  "011035":
+    fund_name: "嘉实中证稀土产业ETF联接A"
+    urls:
+      - "https://wap.miit.gov.cn/jgsj/ycls/xt/index.html"
+      - "https://www.gov.cn/"
+      - "https://www.jsfund.cn/main/fund/011035/fundRecord.shtml"
+      - "https://www.csindex.com.cn/"
+
+  "024194":
+    fund_name: "永赢国证商用卫星通信产业ETF发起联接A"
+    urls:
+      - "https://www.gov.cn/zhengce/zhengceku/202508/content_7038032.htm"
+      - "https://www.gov.cn/"
+      - "https://www.maxwealthfund.com/"
+      - "https://www.miit.gov.cn/"
+
+  "007028":
+    fund_name: "易方达中证500ETF联接发起式A"
+    urls:
+      - "https://www.csindex.com.cn/"
+      - "https://www.efunds.com.cn/fund/007028.shtml"
+      - "https://www.pbc.gov.cn/"
+      - "https://www.gov.cn/"
+
+  "217023":
+    fund_name: "招商信用增强债券A"
+    urls:
+      - "https://www.pbc.gov.cn/"
+      - "https://www.pbc.gov.cn/zhengcehuobisi/"
+      - "https://www.cmfchina.com/web/fundDetail/217023/index.html"
+      - "https://www.chinabond.com.cn/"
+
+  "007951":
+    fund_name: "招商信用增强债券C"
+    urls:
+      - "https://www.pbc.gov.cn/"
+      - "https://www.pbc.gov.cn/zhengcehuobisi/"
+      - "https://www.cmfchina.com/web/fundDetail/217023/index.html"
+      - "https://www.chinabond.com.cn/"
+
+  "002963":
+    fund_name: "易方达黄金ETF联接C"
+    urls:
+      - "https://www.sge.com.cn/"
+      - "https://www.efunds.com.cn/fund/002963.shtml"
+      - "https://www.pbc.gov.cn/"
+      - "https://www.worldgoldcouncil.org/"
