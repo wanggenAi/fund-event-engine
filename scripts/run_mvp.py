@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import sys
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,6 +12,10 @@ from urllib import request
 
 ROOT = Path(__file__).resolve().parents[1]
 PROMPTS_DIR = ROOT / "prompts"
+DIR_POSITIVE = "偏利好"
+DIR_NEUTRAL = "中性"
+DIR_NEGATIVE = "偏利空"
+DIR_UNCLEAR = "不明确"
 
 
 @dataclass
@@ -129,6 +134,23 @@ def build_stage_user_prompt(stage_prompt: str, payload: Dict[str, Any]) -> str:
     )
 
 
+def build_report_user_prompt(report_prompt: str, payload: Dict[str, Any]) -> str:
+    return (
+        f"{report_prompt}\n\n"
+        "下面提供的是结构化分析结果。\n"
+        "你的任务是：把它整理成一份面向基金持有人的纯文本中文报告。\n"
+        "严格要求：\n"
+        "1. 只输出最终报告正文\n"
+        "2. 不要输出 JSON\n"
+        "3. 不要输出代码块\n"
+        "4. 不要输出标题解释、前言、备注或额外说明\n"
+        "5. 不要复述任务要求\n"
+        "6. 如果输入信息不足，也只能按报告格式输出，不要改成说明文字。\n\n"
+        "结构化结果如下：\n"
+        f"{json.dumps(payload, ensure_ascii=False, indent=2)}"
+    )
+
+
 def mock_noise_filter(doc: Dict[str, Any]) -> Dict[str, Any]:
     text = f"{doc.get('title', '')} {doc.get('content', '')}"
     noise_hits = ["观点", "看好", "情绪", "传闻", "听说", "网友", "股吧"]
@@ -206,10 +228,10 @@ def mock_event_extract(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 def mock_fund_map(fund_code: str, fund_name: str, fund_profile: str, event: Dict[str, Any]) -> Dict[str, Any]:
     direction_map = {
-        "利好": "偏利好",
-        "利空": "偏利空",
-        "中性": "中性",
-        "不明确": "不明确",
+        "利好": DIR_POSITIVE,
+        "利空": DIR_NEGATIVE,
+        "中性": DIR_NEUTRAL,
+        "不明确": DIR_UNCLEAR,
     }
     event_dir = event.get("bullish_bearish", "不明确")
     keywords = extract_profile_keywords(fund_profile)
@@ -229,7 +251,7 @@ def mock_fund_map(fund_code: str, fund_name: str, fund_profile: str, event: Dict
     if thematic_hit and relevance_score < 3:
         relevance_score = 3
     related = relevance_score >= 2
-    direction_for_fund = direction_map.get(event_dir, "不明确") if related else "不明确"
+    direction_for_fund = direction_map.get(event_dir, DIR_UNCLEAR) if related else DIR_UNCLEAR
     logic_path = "事件与基金画像关键词匹配度较低，暂不构成清晰影响链条。"
     if related:
         logic_path = "事件触及基金核心暴露变量，可能通过估值与风险偏好路径传导至基金表现。"
@@ -237,6 +259,9 @@ def mock_fund_map(fund_code: str, fund_name: str, fund_profile: str, event: Dict
     return {
         "fund_code": fund_code,
         "fund_name": fund_name,
+        "event_title": event.get("event_title", ""),
+        "event_date": event.get("event_date", "未明确"),
+        "doc_id": event.get("doc_id", ""),
         "related": related,
         "relevance_score": relevance_score,
         "direction_for_fund": direction_for_fund,
@@ -251,34 +276,62 @@ def mock_fund_map(fund_code: str, fund_name: str, fund_profile: str, event: Dict
 
 
 def mock_aggregate(fund_code: str, fund_name: str, mapped: List[Dict[str, Any]], noise_events: List[str]) -> Dict[str, Any]:
-    score = 0
-    for m in mapped:
-        if m["direction_for_fund"] == "偏利好":
-            score += m["relevance_score"]
-        elif m["direction_for_fund"] == "偏利空":
-            score -= m["relevance_score"]
+    view_3d_direction, view_3d_reason, view_3d_conf = evaluate_view_3d(mapped)
+    view_2w_direction, view_2w_reason, view_2w_conf = evaluate_view_2w(mapped)
 
-    view = "中性"
-    if score >= 3:
-        view = "偏利好"
-    elif score <= -3:
-        view = "偏利空"
+    long_logic, long_logic_reason, long_logic_conf = evaluate_long_term_logic(mapped)
 
-    long_logic = "暂不明确"
-    if view == "偏利好":
-        long_logic = "长期逻辑仍在"
-    elif view == "偏利空":
-        long_logic = "逻辑走弱"
+    positive_refs = [
+        {
+            "event_title": m.get("event_title", ""),
+            "logic_path": m.get("logic_path", ""),
+            "direction_for_fund": m.get("direction_for_fund", DIR_UNCLEAR),
+            "relevance_score": m.get("relevance_score", 1),
+            "confidence": m.get("confidence", 1),
+        }
+        for m in sorted(
+            [x for x in mapped if x.get("direction_for_fund") == DIR_POSITIVE],
+            key=lambda x: (x.get("relevance_score", 0), x.get("confidence", 0)),
+            reverse=True,
+        )[:3]
+    ]
+    negative_refs = [
+        {
+            "event_title": m.get("event_title", ""),
+            "logic_path": m.get("logic_path", ""),
+            "direction_for_fund": m.get("direction_for_fund", DIR_UNCLEAR),
+            "relevance_score": m.get("relevance_score", 1),
+            "confidence": m.get("confidence", 1),
+        }
+        for m in sorted(
+            [x for x in mapped if x.get("direction_for_fund") == DIR_NEGATIVE],
+            key=lambda x: (x.get("relevance_score", 0), x.get("confidence", 0)),
+            reverse=True,
+        )[:3]
+    ]
+    noise_refs = [
+        {
+            "event_title": str(n),
+            "logic_path": "噪音或低价值信息，未纳入核心判断。",
+            "direction_for_fund": DIR_UNCLEAR,
+            "relevance_score": 1,
+            "confidence": 1,
+        }
+        for n in noise_events[:3]
+    ]
 
     return {
         "fund_code": fund_code,
         "fund_name": fund_name,
-        "view_3d": {"direction": view, "reason": "基于最新事件加权后得出。", "confidence": 3},
-        "view_2w": {"direction": view, "reason": "近两周叙事未出现明显反转。", "confidence": 3},
-        "view_3m": {"direction": long_logic, "reason": "长期判断取决于核心变量是否持续验证。", "confidence": 2},
-        "top_positive_drivers": [m["logic_path"] for m in mapped if m["direction_for_fund"] == "偏利好"][:3],
-        "top_negative_drivers": [m["logic_path"] for m in mapped if m["direction_for_fund"] == "偏利空"][:3],
+        "view_3d": {"direction": view_3d_direction, "reason": view_3d_reason, "confidence": view_3d_conf},
+        "view_2w": {"direction": view_2w_direction, "reason": view_2w_reason, "confidence": view_2w_conf},
+        "view_3m": {"direction": long_logic, "reason": long_logic_reason, "confidence": long_logic_conf},
+        "top_positive_drivers": [x["logic_path"] for x in positive_refs][:3],
+        "top_negative_drivers": [x["logic_path"] for x in negative_refs][:3],
         "main_noise_events": noise_events[:3],
+        "positive_event_refs": positive_refs,
+        "negative_event_refs": negative_refs,
+        "noise_event_refs": noise_refs,
         "core_logic_status": long_logic,
         "key_risks": ["核心定价变量反向波动风险"],
         "conflicts_between_events": [],
@@ -286,20 +339,170 @@ def mock_aggregate(fund_code: str, fund_name: str, mapped: List[Dict[str, Any]],
     }
 
 
+def evaluate_view_3d(mapped: List[Dict[str, Any]]) -> tuple[str, str, int]:
+    # 近3日：更偏向短期催化，高相关高置信且短期/直接命中的事件权重更高。
+    pos = 0.0
+    neg = 0.0
+    pos_cnt = 0
+    neg_cnt = 0
+    for m in mapped:
+        if not m.get("related"):
+            continue
+        base = float(m.get("relevance_score", 1)) * (0.6 + 0.1 * float(m.get("confidence", 1)))
+        horizon = m.get("impact_horizon")
+        if horizon == "短期":
+            base *= 1.35
+        elif horizon in ["中期", "混合"]:
+            base *= 1.05
+        if m.get("is_direct_hit"):
+            base *= 1.15
+
+        if m.get("direction_for_fund") == DIR_POSITIVE:
+            pos += base
+            pos_cnt += 1
+        elif m.get("direction_for_fund") == DIR_NEGATIVE:
+            neg += base
+            neg_cnt += 1
+
+    diff = pos - neg
+    total = pos + neg
+    if total < 2.5:
+        return DIR_UNCLEAR, "短期有效信号强度不足，近3日方向暂不明确。", 2
+    if pos_cnt > 0 and neg_cnt > 0 and abs(diff) <= 1.2:
+        return DIR_UNCLEAR, "短期信号存在明显冲突，近3日方向暂不明确。", 2
+    if diff >= 1.8:
+        return DIR_POSITIVE, "近期短期催化以同向利好为主，近3日偏利好。", 3
+    if diff <= -1.8:
+        return DIR_NEGATIVE, "近期短期催化以同向利空为主，近3日偏利空。", 3
+    return DIR_NEUTRAL, "短期多空信号未形成显著优势，近3日倾向中性。", 2
+
+
+def evaluate_view_2w(mapped: List[Dict[str, Any]]) -> tuple[str, str, int]:
+    # 近2周：更看重阶段叙事连续性，中期/混合权重更高，不因单一短期事件轻易反转。
+    pos_score = 0.0
+    neg_score = 0.0
+    pos_chain = 0
+    neg_chain = 0
+    for m in mapped:
+        if not m.get("related"):
+            continue
+        base = float(m.get("relevance_score", 1)) * (0.6 + 0.1 * float(m.get("confidence", 1)))
+        horizon = m.get("impact_horizon")
+        if horizon in ["中期", "混合"]:
+            base *= 1.35
+        elif horizon == "长期":
+            base *= 1.2
+        elif horizon == "短期":
+            base *= 0.85
+        if m.get("affects_core_logic"):
+            base *= 1.1
+
+        if m.get("direction_for_fund") == DIR_POSITIVE:
+            pos_score += base
+            pos_chain += 1
+        elif m.get("direction_for_fund") == DIR_NEGATIVE:
+            neg_score += base
+            neg_chain += 1
+
+    if max(pos_chain, neg_chain) <= 1 and (pos_chain + neg_chain) > 0:
+        return DIR_NEUTRAL, "近两周尚未形成连续同向叙事，阶段判断维持中性。", 2
+
+    diff = pos_score - neg_score
+    if pos_chain >= 2 and diff >= 1.8:
+        return DIR_POSITIVE, "近两周形成较连续的同向利好叙事，阶段偏利好。", 3
+    if neg_chain >= 2 and diff <= -1.8:
+        return DIR_NEGATIVE, "近两周形成较连续的同向利空叙事，阶段偏利空。", 3
+    if pos_chain > 0 and neg_chain > 0:
+        return DIR_NEUTRAL, "近两周叙事方向分化，阶段判断以中性为主。", 2
+    if (pos_chain + neg_chain) == 0:
+        return DIR_UNCLEAR, "近两周缺少可用的阶段性信号，方向暂不明确。", 2
+    return DIR_NEUTRAL, "近两周叙事连续性不足，阶段判断维持中性。", 2
+
+
+def evaluate_long_term_logic(mapped: List[Dict[str, Any]]) -> tuple[str, str, int]:
+    core_related = [
+        m
+        for m in mapped
+        if m.get("related")
+        and (
+            m.get("is_direct_hit")
+            or m.get("affects_core_logic")
+            or m.get("impact_horizon") in ["中期", "长期", "混合"]
+        )
+    ]
+    if not core_related:
+        return "暂不明确", "缺少直接触及基金核心主线或中长期变量的证据。", 2
+
+    destructive = [
+        m
+        for m in core_related
+        if m.get("direction_for_fund") == DIR_NEGATIVE
+        and (
+            m.get("affects_core_logic")
+            or m.get("impact_horizon") in ["长期", "混合"]
+            or (m.get("relevance_score", 0) >= 4 and m.get("confidence", 0) >= 3)
+        )
+    ]
+    supportive = [
+        m
+        for m in core_related
+        if m.get("direction_for_fund") == DIR_POSITIVE
+        and (
+            m.get("affects_core_logic")
+            or m.get("impact_horizon") in ["长期", "混合"]
+            or (m.get("relevance_score", 0) >= 4 and m.get("confidence", 0) >= 3)
+        )
+    ]
+
+    if len(destructive) >= 2 and len(supportive) == 0:
+        return "逻辑被破坏", "存在多条高相关利空且触及核心逻辑的事件，出现破坏性证据。", 4
+    if len(destructive) >= 1 and len(supportive) == 0:
+        return "逻辑走弱", "已有事件触及核心变量并偏利空，但破坏性证据仍有限。", 3
+    if len(supportive) >= 1 and len(destructive) == 0:
+        return "长期逻辑仍在", "核心变量相关证据仍以支撑为主，暂未见破坏性证据。", 3
+
+    return "暂不明确", "核心相关证据存在分歧或强度不足，暂不能下长期强结论。", 2
+
+
 def build_report(agg: Dict[str, Any]) -> str:
-    return (
-        f"【{agg['fund_name']}】\n\n"
-        f"近3日判断：{agg['view_3d']['direction']}。{agg['view_3d']['reason']}\n\n"
-        f"近2周判断：{agg['view_2w']['direction']}。{agg['view_2w']['reason']}\n\n"
-        f"近3个月逻辑：{agg['view_3m']['direction']}。{agg['view_3m']['reason']}\n\n"
-        "主要利好：\n"
-        + "\n".join(f"- {x}" for x in agg["top_positive_drivers"][:3])
-        + "\n\n主要利空：\n"
-        + "\n".join(f"- {x}" for x in agg["top_negative_drivers"][:3])
-        + "\n\n风险提醒：\n"
-        + "\n".join(f"- {x}" for x in agg["key_risks"][:2])
-        + "\n\n一句话结论：当前输出为事件驱动方向判断，证据不足时应保持谨慎。\n"
-    )
+    def fmt_ref(item: Dict[str, Any]) -> str:
+        return (
+            f"- {item.get('event_title', '未命名事件')}："
+            f"{item.get('logic_path', '')}"
+            f"（方向：{item.get('direction_for_fund', DIR_UNCLEAR)}，"
+            f"相关度：{item.get('relevance_score', 1)}，"
+            f"置信度：{item.get('confidence', 1)}）"
+        )
+
+    positive_lines = [fmt_ref(x) for x in agg.get("positive_event_refs", [])[:3]]
+    negative_lines = [fmt_ref(x) for x in agg.get("negative_event_refs", [])[:3]]
+    if not positive_lines:
+        positive_lines = [f"- {x}" for x in agg.get("top_positive_drivers", [])[:3]]
+    if not negative_lines:
+        negative_lines = [f"- {x}" for x in agg.get("top_negative_drivers", [])[:3]]
+    if not positive_lines:
+        positive_lines = ["- 暂无明确利好事件。"]
+    if not negative_lines:
+        negative_lines = ["- 暂无明确利空事件。"]
+
+    risk_lines = [f"- {x}" for x in agg.get("key_risks", [])[:2]] or ["- 暂无新增风险信号。"]
+    noise_note = ""
+    if agg.get("noise_event_refs"):
+        noise_note = "近期存在一定噪音信息，部分信号需谨慎解读。"
+
+    sections = [
+        f"【{agg['fund_name']}】",
+        f"近3日判断：{agg['view_3d']['direction']}。{agg['view_3d']['reason']}",
+        f"近2周判断：{agg['view_2w']['direction']}。{agg['view_2w']['reason']}",
+        f"近3个月逻辑：{agg['view_3m']['direction']}。{agg['view_3m']['reason']}",
+        "主要利好：\n" + "\n".join(positive_lines),
+        "主要利空：\n" + "\n".join(negative_lines),
+        "风险提醒：\n" + "\n".join(risk_lines),
+    ]
+    if noise_note:
+        sections.append(noise_note)
+    sections.append("一句话结论：当前输出为事件驱动方向判断，证据不足时应保持谨慎。")
+    return "\n\n".join(sections) + "\n"
 
 
 def call_json_llm(backend: Backends, system_prompt: str, stage_prompt: str, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -384,7 +587,7 @@ def main() -> None:
     else:
         agg = call_json_llm(backend, system_prompt, aggregate_prompt, agg_payload)
 
-    report_text = build_report(agg) if args.backend == "mock" else backend.chat(system_prompt, build_stage_user_prompt(_report_prompt, agg))
+    report_text = build_report(agg) if args.backend == "mock" else backend.chat(system_prompt, build_report_user_prompt(_report_prompt, agg))
 
     out_dir = ROOT / "outputs"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -396,10 +599,13 @@ def main() -> None:
     )
     (out_dir / f"{args.fund_code}_report.txt").write_text(report_text, encoding="utf-8")
 
-    print(f"MVP done for {args.fund_code}: {len(docs)} docs, {len(extracted_events)} extracted events")
-    print(f"- mapped: outputs/{args.fund_code}_mapped_events.json")
-    print(f"- aggregate: outputs/{args.fund_code}_aggregate.json")
-    print(f"- report: outputs/{args.fund_code}_report.txt")
+    # Keep stdout Telegram-friendly: report body only.
+    print(report_text.rstrip("\n"))
+    # Route runtime details to stderr for debugging/ops.
+    print(f"MVP done for {args.fund_code}: {len(docs)} docs, {len(extracted_events)} extracted events", file=sys.stderr)
+    print(f"- mapped: outputs/{args.fund_code}_mapped_events.json", file=sys.stderr)
+    print(f"- aggregate: outputs/{args.fund_code}_aggregate.json", file=sys.stderr)
+    print(f"- report: outputs/{args.fund_code}_report.txt", file=sys.stderr)
 
 
 if __name__ == "__main__":

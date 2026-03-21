@@ -13,6 +13,8 @@
    - 长期逻辑是否仍在
    - 为什么这样判断
    - 现在最需要警惕什么
+6. 如果输入中包含 positive_event_refs、negative_event_refs、noise_event_refs，必须优先引用其中最关键的 1 到 3 条事件作为判断依据。
+7. 引用事件时要点明“事件标题 + 影响链路（logic_path）”，保持简洁，不要堆砌。
 
 请按以下格式输出：
 

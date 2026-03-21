@@ -36,6 +36,9 @@
   "top_positive_drivers": [],
   "top_negative_drivers": [],
   "main_noise_events": [],
+  "positive_event_refs": [],
+  "negative_event_refs": [],
+  "noise_event_refs": [],
   "core_logic_status": "",
   "key_risks": [],
   "conflicts_between_events": [],
@@ -55,6 +58,8 @@
 10. 输入中的 direction_for_fund 只按以下四类理解：偏利好/中性/偏利空/不明确，不要自行扩展同义词。
 11. 必须优先引用 relevance_score 高且 confidence 高的事件；低相关事件仅可作为辅助信息。
 12. main_noise_events 只保留最具代表性的 1 到 3 条噪音事件标题或 doc_id。
+13. positive_event_refs、negative_event_refs、noise_event_refs 各保留 1 到 3 条代表性事件。
+14. 每条 event ref 至少包含：event_title、logic_path、direction_for_fund、relevance_score、confidence。
 
 判断倾向时，应优先参考：
 - 相关度高的事件

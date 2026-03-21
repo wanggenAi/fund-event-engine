@@ -2,6 +2,9 @@
   {
     "fund_code": "024194",
     "fund_name": "永赢国证商用卫星通信产业ETF发起联接A",
+    "event_title": "卫星互联网相关政策发布，鼓励商用应用拓展",
+    "event_date": "2026-03-17",
+    "doc_id": "sat-001",
     "related": true,
     "relevance_score": 3,
     "direction_for_fund": "不明确",
@@ -19,6 +22,9 @@
   {
     "fund_code": "024194",
     "fund_name": "永赢国证商用卫星通信产业ETF发起联接A",
+    "event_title": "某卫星组网发射任务延期",
+    "event_date": "2026-03-19",
+    "doc_id": "sat-002",
     "related": true,
     "relevance_score": 3,
     "direction_for_fund": "偏利空",
