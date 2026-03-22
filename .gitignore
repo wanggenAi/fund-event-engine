@@ -18,3 +18,8 @@ sample_data/urls_docs.skipped.json
 
 # Optional local temp files
 *.log
+
+# Pipeline/demo generated artifacts
+data/events/*.json
+data/snapshots/*.json
+reports/*.md

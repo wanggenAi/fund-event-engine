@@ -7,6 +7,9 @@ funds:
       - "https://www.csindex.com.cn/"
       - "https://www.thfund.com.cn/fundinfo/025832"
       - "https://www.sgcc.com.cn/"
+      - "https://www.csg.cn/"
+      - "https://www.ndrc.gov.cn/"
+      - "https://xueqiu.com/"
 
   "011035":
     fund_name: "嘉实中证稀土产业ETF联接A"
@@ -15,6 +18,8 @@ funds:
       - "https://www.gov.cn/"
       - "https://www.jsfund.cn/main/fund/011035/fundRecord.shtml"
       - "https://www.csindex.com.cn/"
+      - "https://www.mnr.gov.cn/"
+      - "https://xueqiu.com/"
 
   "024194":
     fund_name: "永赢国证商用卫星通信产业ETF发起联接A"
@@ -23,6 +28,9 @@ funds:
       - "https://www.gov.cn/"
       - "https://www.maxwealthfund.com/"
       - "https://www.miit.gov.cn/"
+      - "https://www.cnsa.gov.cn/"
+      - "https://www.spacechina.com/"
+      - "https://www.cls.cn/"
 
   "007028":
     fund_name: "易方达中证500ETF联接发起式A"
@@ -31,6 +39,8 @@ funds:
       - "https://www.efunds.com.cn/fund/007028.shtml"
       - "https://www.pbc.gov.cn/"
       - "https://www.gov.cn/"
+      - "https://www.stats.gov.cn/"
+      - "https://www.cls.cn/"
 
   "217023":
     fund_name: "招商信用增强债券A"
@@ -39,6 +49,8 @@ funds:
       - "https://www.pbc.gov.cn/zhengcehuobisi/"
       - "https://www.cmfchina.com/web/fundDetail/217023/index.html"
       - "https://www.chinabond.com.cn/"
+      - "https://www.cfets-nex.com.cn/"
+      - "https://www.jisilu.cn/"
 
   "007951":
     fund_name: "招商信用增强债券C"
@@ -47,6 +59,8 @@ funds:
       - "https://www.pbc.gov.cn/zhengcehuobisi/"
       - "https://www.cmfchina.com/web/fundDetail/217023/index.html"
       - "https://www.chinabond.com.cn/"
+      - "https://www.cfets-nex.com.cn/"
+      - "https://www.jisilu.cn/"
 
   "002963":
     fund_name: "易方达黄金ETF联接C"
@@ -54,4 +68,7 @@ funds:
       - "https://www.sge.com.cn/"
       - "https://www.efunds.com.cn/fund/002963.shtml"
       - "https://www.pbc.gov.cn/"
-      - "https://www.worldgoldcouncil.org/"
+      - "https://www.gold.org/"
+      - "https://www.lbma.org.uk/"
+      - "https://www.safe.gov.cn/"
+      - "https://www.cls.cn/"

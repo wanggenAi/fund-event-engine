@@ -1,0 +1,64 @@
+# 推荐公式（可按策略调参）：
+# final_score =
+#   source_weight
+# * freshness_weight
+# * event_strength
+# * relevance
+# * direction_sign
+# * confidence
+# * stale_penalty
+
+source_weight:
+  official: 1.00
+  exchange: 0.95
+  fund_company: 0.90
+  listed_company: 0.85
+  mainstream_media: 0.75
+  industry_media: 0.65
+  community_forum: 0.45
+  self_media: 0.40
+  other: 0.50
+
+freshness_weight:
+  within_3d: 1.00
+  within_7d: 0.90
+  within_14d: 0.80
+  within_30d: 0.65
+  older_than_30d: 0.35
+  unknown: 0.40
+
+event_strength_weight:
+  formal_announcement: 1.00
+  confirmed_report: 0.80
+  secondary_report: 0.55
+  rumor: 0.30
+
+stale_penalty:
+  older_than_window: 0.60
+  date_uncertain: 0.70
+  community_unconfirmed: 0.75
+
+relevance_thresholds:
+  ignore_below: 0.25
+  weak_below: 0.45
+  medium_below: 0.70
+  strong_at_least: 0.70
+
+final_score_bands:
+  strong_bullish: 0.65
+  bullish: 0.25
+  neutral_low: -0.25
+  neutral_high: 0.25
+  bearish: -0.25
+  strong_bearish: -0.65
+
+horizon_adjustments:
+  "3d":
+    freshness_multiplier: 1.20
+    contradiction_penalty: 0.20
+  "2w":
+    freshness_multiplier: 1.00
+    contradiction_penalty: 0.15
+  "3m":
+    freshness_multiplier: 0.80
+    contradiction_penalty: 0.10

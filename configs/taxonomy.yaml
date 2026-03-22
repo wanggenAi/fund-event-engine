@@ -1,0 +1,79 @@
+event_taxonomy:
+  policy:
+    subtypes:
+      - key: industrial_policy
+        aliases: ["产业政策", "专项规划", "扶持政策", "industrial policy"]
+        applies_to: ["thematic_equity", "broad_equity"]
+      - key: export_control
+        aliases: ["出口管制", "出口限制", "配额", "export control"]
+        applies_to: ["thematic_equity"]
+      - key: regulation_update
+        aliases: ["监管新规", "征求意见稿", "办法发布", "regulation"]
+        applies_to: ["bond", "broad_equity"]
+
+  industry_data:
+    subtypes:
+      - key: price_change
+        aliases: ["价格上涨", "价格下跌", "报价", "现货价", "price change"]
+        applies_to: ["thematic_equity", "gold"]
+      - key: supply_demand
+        aliases: ["供给", "需求", "去库", "累库", "供需格局"]
+        applies_to: ["thematic_equity", "gold", "bond"]
+      - key: order_and_tender
+        aliases: ["中标", "订单", "招标", "签约"]
+        applies_to: ["thematic_equity"]
+
+  company_event:
+    subtypes:
+      - key: earnings_guidance
+        aliases: ["业绩预告", "业绩快报", "盈利预警", "earnings"]
+        applies_to: ["thematic_equity", "broad_equity"]
+      - key: project_progress
+        aliases: ["发射", "延期", "投产", "项目进展", "launch"]
+        applies_to: ["thematic_equity"]
+      - key: credit_event
+        aliases: ["违约", "展期", "兑付", "信用事件", "default"]
+        applies_to: ["bond"]
+
+  market_macro:
+    subtypes:
+      - key: liquidity
+        aliases: ["降准", "降息", "流动性", "公开市场操作", "liquidity"]
+        applies_to: ["broad_equity", "bond", "gold"]
+      - key: fx_and_usd
+        aliases: ["美元", "汇率", "美元指数", "usd"]
+        applies_to: ["gold", "broad_equity"]
+      - key: real_rate
+        aliases: ["实际利率", "通胀预期", "real yield"]
+        applies_to: ["gold", "bond"]
+
+  sentiment:
+    subtypes:
+      - key: rumor
+        aliases: ["传闻", "据悉", "市场消息", "rumor"]
+        applies_to: ["thematic_equity", "broad_equity", "bond", "gold"]
+      - key: commentary
+        aliases: ["观点", "解读", "评论", "opinion"]
+        applies_to: ["thematic_equity", "broad_equity", "bond", "gold"]
+
+# 全局强度分层，供 scoring/规则层复用。
+event_strength_levels:
+  high: ["formal_announcement", "official_notice"]
+  medium: ["confirmed_report", "mainstream_media"]
+  low: ["secondary_report", "rumor"]
+
+source_reliability_levels:
+  official: 1.0
+  exchange: 0.95
+  fund_company: 0.9
+  listed_company: 0.85
+  mainstream_media: 0.75
+  industry_media: 0.65
+  other: 0.5
+
+default_horizons:
+  policy: "2w"
+  industry_data: "2w"
+  company_event: "3d"
+  market_macro: "3m"
+  sentiment: "3d"

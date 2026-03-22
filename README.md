@@ -1,199 +1,128 @@
 # fund-event-engine
 
-最小可运行流程（MVP）已就位，当前按以下链路执行：
+基金事件驱动判断引擎（MVP）。
 
-1. 去噪（`noise_filter_prompt.txt`）
-2. 事件抽取（`event_extract_prompt.txt`）
-3. 基金映射（`fund_map_prompt.txt` + `fund_profiles/<fund_code>.txt`）
-4. 聚合判断（`aggregate_prompt.txt`）
-5. 报告输出（`report_prompt.txt`）
+项目定位：
+- 这是“事件 -> 资产/行业 -> 基金”的方向判断系统。
+- 不是价格点位预测器，不输出买卖建议。
 
-## 运行方式
+## 当前覆盖基金
+- 025832 天弘中证电网设备主题指数发起A
+- 011035 嘉实中证稀土产业ETF联接A
+- 024194 永赢国证商用卫星通信产业ETF发起联接A
+- 007028 易方达中证500ETF联接发起式A
+- 217023 招商信用增强债券A
+- 007951 招商信用增强债券C
+- 002963 易方达黄金ETF联接C
 
-使用内置 mock 后端（无外部依赖）：
+## 项目结构
+- `configs/`: 基金画像、事件分类、评分与数据源配置。
+- `src/collectors/`: 免费公开源采集模块骨架。
+- `src/parsers/`: 文本清洗与样例解析。
+- `src/event_engine/`: 事件抽取、分类、影响链、评分、反证检查。
+- `src/fund_mapper/`: 基金画像加载、事件映射、基金级聚合判断。
+- `src/reports/`: 日/周/月报告渲染与 demo 执行脚本。
+- `prompts/`: 可复用提示词（结构化、可程序加载）。
+- `examples/`: 回归样例。
+- `data/events`, `data/snapshots`: 结构化输出。
+- `reports/`: Markdown 报告输出。
 
+## 数据源原则
+仅使用免费公开信息：
+- 官方网站、监管与交易所公告
+- 基金公司公开页面
+- 主流财经媒体
+- RSS 与站点搜索入口
+
+不使用付费 API、付费爬虫服务、付费数据库。
+
+## 判断框架
+对每只基金输出：
+- 3d：利好 / 利空 / 中性
+- 2w：利好 / 利空 / 中性
+- 3m：利好 / 利空 / 中性
+- 长期逻辑：强化 / 不变 / 弱化
+
+并附带：
+- 核心驱动
+- 影响链条
+- 反证与风险
+- 观察点
+- 置信度
+
+## 快速开始
+### 1) 运行新 demo 链路（推荐）
 ```bash
-python3 scripts/run_mvp.py \
-  --fund-code 002963 \
-  --input sample_data/002963_docs.json \
-  --backend mock
+python3 -m src.reports.run_demo
 ```
 
-输出文件位于 `outputs/`：
+运行后将生成：
+- `data/events/demo_events.json`
+- `data/snapshots/demo_signals.json`
+- `data/snapshots/demo_snapshot.json`
+- `reports/demo_output.md`
 
-- `<fund_code>_mapped_events.json`
-- `<fund_code>_aggregate.json`
-- `<fund_code>_report.txt`
-
-## 最小网页抓取层（URL -> docs.json）
-
-用于把 URL 列表转换为当前 `run_mvp.py` 可直接消费的输入文件。
-
-种子配置文件：
-
-- `configs/source_seeds.yaml`
-
-按基金代码读取种子 URL 并构建 docs：
-
+### 2) 运行 openclaw 友好 pipeline
 ```bash
-python3 scripts/build_docs_from_urls.py --fund-code 024194
+python3 -m src.pipeline.run --window-days 7
 ```
 
-按 URL 文件构建 docs：
+可选参数：
+- `--window-days 3|7|14|30`：严格新鲜度窗口（默认 7）。
+- `--fund 011035 --fund 002963`：仅输出指定基金。
+- `--events-out/--signals-out/--reports-out/--markdown-out`：自定义产物路径。
 
+### 3) 兼容旧 MVP 主链路
+项目保留 `scripts/run_mvp.py` 与 `scripts/run_report.sh`，用于你现有 sample_data 流程。
+
+### 4) 一键执行（抓取 + 分析 + 报告）
 ```bash
-python3 scripts/build_docs_from_urls.py --urls-file sample_data/024194_urls.txt --output sample_data/024194_docs.json
+scripts/run_one_click.sh 002963
 ```
 
-常用参数：
+说明：
+- 默认每次都会先抓取网页并覆盖旧的 `sample_data/<fund_code>_docs.json`，再运行报告分析。
+- 最终报告正文输出到 stdout，便于 Telegram/OpenClaw 直接回传。
+- 常用环境变量：
+  - `AUTO_FETCH=0`：跳过抓取，直接用现有 input
+  - `MAX_URLS=20`：抓取 URL 上限
+  - `BACKEND=mock|openai_compat`
 
-- `--max-urls 20`：限制抓取 URL 数量
-- `--timeout 15`：单 URL 超时秒数
+## 关键配置文件
+- `configs/funds.yaml`: 7只基金结构化画像与驱动因子。
+- `configs/taxonomy.yaml`: 事件分类体系、同义词、适用基金类型。
+- `configs/scoring.yaml`: 来源/新鲜度/强度权重与阈值。
+- `configs/sources.yaml`: 免费公开来源清单。
 
-输出：
+## Prompts
+- `prompts/extract_event.md`
+- `prompts/map_event_to_fund.md`
+- `prompts/short_term_judgement.md`
+- `prompts/long_term_logic_review.md`
+- `prompts/contradiction_check.md`
 
-- docs：`sample_data/<fund_code>_docs.json`（或 `--output` 指定路径）
-- 失败记录：`*.failures.json`（抓取失败不中断）
+## How To Use With Openclaw
+推荐将 pipeline 拆分为可编排步骤，并消费稳定 JSON 契约：
+1. `python3 -m src.pipeline.run --window-days 7`
+2. 读取 `data/events/pipeline_events.json`
+3. 读取 `data/snapshots/pipeline_signals.json`
+4. 读取 `data/snapshots/pipeline_reports.json`
+5. 可选回传 `reports/pipeline_report.md` 给 Telegram
 
-## 可替换 LLM 接口（未写死）
+字段稳定性说明：
+- 事件层保留 `published_at/event_date/collected_at/freshness_bucket/is_stale`
+- 基金层保留 `analysis_window/recent_event_count/stale_event_count_filtered/direction_3d/direction_2w/direction_3m/long_term_logic/confidence/warnings`
+- `evidence_class` 说明：`event_evidence`（主证据）、`background_evidence`（背景）、`clue_only`（社区/自媒体线索，不直接驱动结论）
 
-脚本支持两种模式：
+新鲜度硬约束：
+- 超过分析窗口的事件默认不纳入主结论
+- 日期不确定事件在 14 天及以下窗口默认降级为背景证据
+- 若近期新增高质量事件不足，默认输出中性/待观察
 
-- `--backend mock`：默认模式，建议本地开发/联调使用（确定性占位流程）。
-- `--backend openai_compat`：备用模式，用于对接 OpenAI 兼容接口（可替换为免费方案网关）。
+## 路线图
+- v0.1：最小可运行链路（样例输入 -> 基金判断 -> JSON/Markdown）
+- v0.2：历史样例验证与评分回看
+- v0.3：自动日报/周报与更稳定的数据采集
 
-`openai_compat` 仅作为备用方案，生产上推荐把 LLM 分析放到 OpenClaw agent 会话中执行。
-
-若使用 `openai_compat`，需要：
-
-- `OPENAI_API_KEY`
-- `OPENAI_BASE_URL`（默认 `https://api.openai.com/v1`）
-- `OPENAI_MODEL`（默认 `gpt-4o-mini`）
-
-## OpenClaw 集成（最小运行方式）
-
-建议固定部署路径（示例）：
-
-- `/opt/fund-event-engine`
-
-固定入口命令（推荐给 OpenClaw 执行）：
-
-```bash
-/opt/fund-event-engine/scripts/run_report.sh
-```
-
-指定基金代码：
-
-```bash
-/opt/fund-event-engine/scripts/run_report.sh 024194
-```
-
-指定基金代码 + 输入文件：
-
-```bash
-/opt/fund-event-engine/scripts/run_report.sh 024194 /opt/fund-event-engine/sample_data/024194_docs.json
-```
-
-默认报告执行行为：
-
-- 不传参数时默认跑 `024194`
-- 默认输入文件为 `sample_data/<fund_code>_docs.json`
-- 默认 `BACKEND=mock`
-
-可选环境变量：
-
-- `UPDATE_REPO=1`：执行前先 `git pull --ff-only`
-- `BACKEND=openai_compat`：切换到 OpenAI 兼容接口
-- `FUND_CODE`、`INPUT_FILE`：可替代位置参数
-- `RUN_TIMEOUT_SECONDS=180`：执行超时时间（秒），超时返回非 0
-
-Telegram 触发 OpenClaw 执行示例（统一路径）：
-
-- 默认报告：`/opt/fund-event-engine/scripts/run_report.sh`
-- 指定基金：`/opt/fund-event-engine/scripts/run_report.sh 011035`
-- 指定基金与输入：`/opt/fund-event-engine/scripts/run_report.sh 024194 /opt/fund-event-engine/sample_data/024194_docs.json`
-
-## OpenClaw 原生运行模式（推荐）
-
-目标：将 LLM 分析职责迁移到 OpenClaw 当前 agent 模型，Python 脚本保留为本地/兜底执行链路。
-
-职责划分：
-
-1. 脚本负责：
-- 读取输入文件（`sample_data/<fund_code>_docs.json`）
-- 串联流程骨架（去噪 -> 抽取 -> 映射 -> 聚合 -> 产物落盘）
-- 产出中间结构化文件（`outputs/*_mapped_events.json`、`outputs/*_aggregate.json`）
-- 输出最终报告文本（stdout）
-
-2. OpenClaw agent 负责：
-- 实际 LLM 推理与中文报告生成
-- 按 prompt 契约执行各阶段分析
-- Telegram 会话中的交互与结果回传
-
-Telegram 触发时，OpenClaw 建议读取：
-
-1. 全局与阶段 prompt：
-- `prompts/system_prompt.txt`
-- `prompts/noise_filter_prompt.txt`
-- `prompts/event_extract_prompt.txt`
-- `prompts/fund_map_prompt.txt`
-- `prompts/aggregate_prompt.txt`
-- `prompts/report_prompt.txt`
-
-2. 基金画像与输入：
-- `prompts/fund_profiles/<fund_code>.txt`
-- `sample_data/<fund_code>_docs.json`（或你的实际抓取输入文件）
-
-最小改造建议（不重构）：
-
-1. 保留中间产物（建议继续落盘）：
-- `outputs/<fund_code>_mapped_events.json`
-- `outputs/<fund_code>_aggregate.json`
-- `outputs/<fund_code>_report.txt`
-
-2. OpenClaw 最适合消费的文件：
-- 优先消费 `outputs/<fund_code>_aggregate.json`（结构稳定，便于二次生成报告）
-- 需要追溯证据时再读 `outputs/<fund_code>_mapped_events.json`
-
-3. 让最终报告由 OpenClaw 当前模型生成的方式：
-- 在 OpenClaw 会话里，读取 `prompts/report_prompt.txt` + `outputs/<fund_code>_aggregate.json`
-- 由 OpenClaw agent 直接生成并回传 Telegram
-- 不必走 `run_mvp.py --backend openai_compat`（保留该模式仅作备用）
-
-## OpenClaw 执行清单（可直接给运维/Agent）
-
-1. 环境准备：
-- 仓库部署在：`/opt/fund-event-engine`
-- 确保可执行：`chmod +x /opt/fund-event-engine/scripts/run_report.sh`
-- 机器具备：`python3`、`bash`
-
-2. Telegram 前置：
-- Telegram pairing 已完成
-- `allowFrom` 已配置为允许当前对话/用户触发
-- OpenClaw agent 允许使用 `exec` 工具
-
-3. 推荐执行命令（OpenClaw exec）：
-- 默认：`/opt/fund-event-engine/scripts/run_report.sh`
-- 指定基金：`/opt/fund-event-engine/scripts/run_report.sh 011035`
-- 指定基金+输入：`/opt/fund-event-engine/scripts/run_report.sh 024194 /opt/fund-event-engine/sample_data/024194_docs.json`
-
-4. 输出约定：
-- `stdout`：仅最终报告正文（适合直接回 Telegram）
-- `stderr`：运行日志与错误信息
-- 中间产物：`outputs/<fund_code>_mapped_events.json`、`outputs/<fund_code>_aggregate.json`、`outputs/<fund_code>_report.txt`
-- 若执行失败，应优先将 `stderr` 的关键信息摘要回传 Telegram，避免静默失败
-
-5. 常用运行参数：
-- 更新代码：`UPDATE_REPO=1 /opt/fund-event-engine/scripts/run_report.sh 024194`
-- 执行超时：`RUN_TIMEOUT_SECONDS=180 /opt/fund-event-engine/scripts/run_report.sh 024194`
-
-6. OpenClaw 原生模型出报告（推荐）：
-- 固定脚本先完成确定性执行，并产出聚合结果
-- OpenClaw 会话再读取 `prompts/report_prompt.txt` + `outputs/<fund_code>_aggregate.json`
-- 最终报告由当前 OpenClaw agent 模型生成并回传 Telegram
-- 不要求 OpenClaw 在该模式下重新执行去噪、事件抽取、基金映射、聚合
-- `run_mvp.py --backend openai_compat` 保留为备用方案，不作为当前推荐链路
-
-7. Telegram 触发示例：
-- “请执行 /opt/fund-event-engine/scripts/run_report.sh，并把最终报告回给我”
-- “请执行 /opt/fund-event-engine/scripts/run_report.sh 011035，并把最终报告回给我”
+## 风险声明
+本项目输出仅用于研究与信息整理，不构成任何投资建议。

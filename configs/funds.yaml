@@ -1,0 +1,77 @@
+funds:
+  - code: "025832"
+    name: "天弘中证电网设备主题指数发起A"
+    type: "thematic_equity"
+    benchmark: "中证电网设备主题指数"
+    sectors: ["电网设备", "特高压", "配网自动化"]
+    factors: ["电网投资强度", "特高压核准进度", "招标与订单落地", "原材料价格"]
+    bullish_triggers: ["电网投资上调", "特高压项目加速", "龙头公司中标超预期"]
+    bearish_triggers: ["电网资本开支下修", "项目延期", "上游涨价侵蚀利润"]
+    judgement_path: "thematic_path"
+    notes: ["重点跟踪国家电网和南网招标节奏", "政策与订单比情绪更重要"]
+
+  - code: "011035"
+    name: "嘉实中证稀土产业ETF联接A"
+    type: "thematic_equity"
+    benchmark: "中证稀土产业指数"
+    sectors: ["稀土开采", "冶炼分离", "永磁材料"]
+    factors: ["稀土价格", "配额政策", "出口管制", "下游新能源需求"]
+    bullish_triggers: ["配额收紧", "价格上行", "高性能磁材需求增长"]
+    bearish_triggers: ["供给释放超预期", "价格回落", "需求下修"]
+    judgement_path: "thematic_path"
+    notes: ["政策与供需格局是核心变量"]
+
+  - code: "024194"
+    name: "永赢国证商用卫星通信产业ETF发起联接A"
+    type: "thematic_equity"
+    benchmark: "国证商用卫星通信产业指数"
+    sectors: ["卫星制造", "发射服务", "卫星通信应用"]
+    factors: ["卫星发射进展", "频轨与牌照", "订单与军民融合需求", "产业资本开支"]
+    bullish_triggers: ["发射成功", "牌照推进", "重大订单落地"]
+    bearish_triggers: ["发射延期或失败", "政策推进不及预期", "订单取消"]
+    judgement_path: "thematic_path"
+    notes: ["短期催化看发射和订单，长期看组网与商业化"]
+
+  - code: "007028"
+    name: "易方达中证500ETF联接发起式A"
+    type: "broad_equity"
+    benchmark: "中证500指数"
+    sectors: ["中盘宽基"]
+    factors: ["流动性环境", "风险偏好", "风格轮动", "盈利预期"]
+    bullish_triggers: ["流动性宽松", "风险偏好回升", "中盘风格修复"]
+    bearish_triggers: ["流动性收紧", "风险偏好走弱", "盈利下修"]
+    judgement_path: "broad_path"
+    notes: ["不按单一产业新闻判断", "重点看宏观与风格变量"]
+
+  - code: "217023"
+    name: "招商信用增强债券A"
+    type: "bond"
+    benchmark: "中债综合指数相关基准"
+    sectors: ["信用债", "利率债"]
+    factors: ["利率中枢", "信用利差", "违约事件", "流动性与赎回压力"]
+    bullish_triggers: ["利率下行", "信用利差收窄", "违约风险缓释"]
+    bearish_triggers: ["利率上行", "信用利差走扩", "信用事件增多"]
+    judgement_path: "bond_path"
+    notes: ["净值弹性受久期与信用暴露共同影响"]
+
+  - code: "007951"
+    name: "招商信用增强债券C"
+    type: "bond"
+    benchmark: "中债综合指数相关基准"
+    sectors: ["信用债", "利率债"]
+    factors: ["利率中枢", "信用利差", "违约事件", "流动性与赎回压力"]
+    bullish_triggers: ["利率下行", "信用利差收窄", "违约风险缓释"]
+    bearish_triggers: ["利率上行", "信用利差走扩", "信用事件增多"]
+    judgement_path: "bond_path"
+    notes: ["与217023底层策略一致，费用结构不同"]
+
+  - code: "002963"
+    name: "易方达黄金ETF联接C"
+    type: "gold"
+    benchmark: "上海黄金交易所Au99.99相关收益基准"
+    sectors: ["黄金现货", "黄金ETF联接"]
+    factors: ["黄金价格", "美元指数", "实际利率", "避险需求", "央行购金"]
+    bullish_triggers: ["实际利率下行", "美元走弱", "避险需求上升", "央行购金增加"]
+    bearish_triggers: ["实际利率上行", "美元走强", "避险需求回落"]
+    judgement_path: "gold_path"
+    notes: ["短期看宏观冲击，长期看实际利率与全球风险偏好"]
