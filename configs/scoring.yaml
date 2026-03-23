@@ -1,12 +1,4 @@
-# 推荐公式（可按策略调参）：
-# final_score =
-#   source_weight
-# * freshness_weight
-# * event_strength
-# * relevance
-# * direction_sign
-# * confidence
-# * stale_penalty
+# final_score = source_weight * freshness_weight * event_strength * relevance * direction_sign * confidence
 
 source_weight:
   official: 1.00
@@ -15,17 +7,17 @@ source_weight:
   listed_company: 0.85
   mainstream_media: 0.75
   industry_media: 0.65
-  community_forum: 0.45
-  self_media: 0.40
-  other: 0.50
+  community_forum: 0.35
+  self_media: 0.30
+  other: 0.45
 
 freshness_weight:
   within_3d: 1.00
   within_7d: 0.90
-  within_14d: 0.80
-  within_30d: 0.65
-  older_than_30d: 0.35
-  unknown: 0.40
+  within_14d: 0.75
+  within_30d: 0.55
+  older_than_30d: 0.25
+  unknown: 0.35
 
 event_strength_weight:
   formal_announcement: 1.00
@@ -34,9 +26,48 @@ event_strength_weight:
   rumor: 0.30
 
 stale_penalty:
-  older_than_window: 0.60
+  older_than_window: 0.55
   date_uncertain: 0.70
-  community_unconfirmed: 0.75
+  community_unconfirmed: 0.70
+
+evidence_mode_weight:
+  direct: 1.00
+  proxy: 0.78
+
+proxy_controls:
+  confidence_multiplier: 0.90
+  max_proxy_share_in_main: 0.60
+  auto_downgrade_strength_when_proxy_dominant: true
+  downgrade_steps: 1
+
+proxy_controls_by_fund_type:
+  thematic_equity:
+    confidence_multiplier: 0.88
+    max_proxy_share_in_main: 0.35
+    auto_downgrade_strength_when_proxy_dominant: true
+    downgrade_steps: 1
+  broad_equity:
+    confidence_multiplier: 0.92
+    max_proxy_share_in_main: 0.60
+    auto_downgrade_strength_when_proxy_dominant: true
+    downgrade_steps: 1
+  bond:
+    confidence_multiplier: 0.92
+    max_proxy_share_in_main: 0.65
+    auto_downgrade_strength_when_proxy_dominant: true
+    downgrade_steps: 1
+  gold:
+    confidence_multiplier: 0.95
+    max_proxy_share_in_main: 0.85
+    auto_downgrade_strength_when_proxy_dominant: false
+    downgrade_steps: 0
+
+proxy_controls_by_fund_code:
+  "002963":
+    confidence_multiplier: 0.95
+    max_proxy_share_in_main: 0.85
+    auto_downgrade_strength_when_proxy_dominant: false
+    downgrade_steps: 0
 
 relevance_thresholds:
   ignore_below: 0.25
@@ -46,10 +77,10 @@ relevance_thresholds:
 
 final_score_bands:
   strong_bullish: 0.65
-  bullish: 0.25
-  neutral_low: -0.25
-  neutral_high: 0.25
-  bearish: -0.25
+  bullish: 0.12
+  neutral_low: -0.12
+  neutral_high: 0.12
+  bearish: -0.12
   strong_bearish: -0.65
 
 horizon_adjustments:

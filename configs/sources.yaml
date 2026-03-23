@@ -1,3 +1,29 @@
+source_type_tier:
+  official_site: A
+  exchange_notice: A
+  fund_company: A
+  listed_company: A
+  media: B
+  industry_media: B
+  rss: B
+  search_seed: C
+  specialist_blog: C
+  community_forum: D
+  self_media: D
+
+source_type_category:
+  official_site: authoritative_data
+  exchange_notice: authoritative_data
+  fund_company: authoritative_data
+  listed_company: authoritative_data
+  media: top_tier_media
+  industry_media: top_tier_media
+  rss: top_tier_media
+  search_seed: specialist_research
+  specialist_blog: specialist_research
+  community_forum: sentiment_sources
+  self_media: sentiment_sources
+
 source_type_freshness_policy:
   official_site:
     freshness_priority: high
@@ -11,31 +37,54 @@ source_type_freshness_policy:
     freshness_priority: medium
     requires_date_extraction: true
     max_age_days: 30
+  listed_company:
+    freshness_priority: high
+    requires_date_extraction: true
+    max_age_days: 14
   media:
     freshness_priority: medium
     requires_date_extraction: true
     max_age_days: 7
+  industry_media:
+    freshness_priority: medium
+    requires_date_extraction: true
+    max_age_days: 7
   rss:
-    freshness_priority: high
+    freshness_priority: medium
     requires_date_extraction: true
     max_age_days: 7
   search_seed:
     freshness_priority: low
     requires_date_extraction: true
     max_age_days: 7
+  specialist_blog:
+    freshness_priority: low
+    requires_date_extraction: true
+    max_age_days: 14
   community_forum:
-    freshness_priority: high
+    freshness_priority: low
     requires_date_extraction: true
     max_age_days: 3
   self_media:
-    freshness_priority: high
+    freshness_priority: low
     requires_date_extraction: true
     max_age_days: 3
 
+source_layers:
+  authoritative_data:
+    usage_rule: "可进入主结论"
+  top_tier_media:
+    usage_rule: "可进入主结论，但需要与核心变量一致"
+  specialist_research:
+    usage_rule: "仅辅助解释，不能单独定方向"
+  sentiment_sources:
+    usage_rule: "仅情绪观察，不能单独支撑结论"
+
 sources:
   - name: "国家能源局"
-    category: "电网设备"
     url: "https://www.nea.gov.cn/"
+    enabled: true
+    category: "authoritative_data"
     source_type: "official_site"
     reliability: "official"
     frequency: "daily"
@@ -43,412 +92,201 @@ sources:
     freshness_priority: "high"
     requires_date_extraction: true
     max_age_days: 14
-    enabled: true
     parser_hint: "article_list"
-    remarks: "电网投资与政策主信号源"
+    remarks: "电网设备主题核心政策源"
 
-  - name: "中证指数公司"
-    category: "指数"
-    url: "https://www.csindex.com.cn/"
-    source_type: "official_site"
-    reliability: "official"
-    frequency: "weekly"
-    tags: ["指数规则", "样本调整"]
-    freshness_priority: "medium"
-    requires_date_extraction: true
-    max_age_days: 30
-    enabled: true
-    parser_hint: "notice"
-    remarks: "宽基与主题指数重要参考"
-
-  - name: "工信部原材料工业司（稀土）"
-    category: "稀土"
+  - name: "工信部原材料工业司"
     url: "https://wap.miit.gov.cn/jgsj/ycls/xt/index.html"
+    enabled: true
+    category: "authoritative_data"
     source_type: "official_site"
     reliability: "official"
     frequency: "daily"
-    tags: ["稀土", "配额", "产业政策"]
+    tags: ["稀土", "总量指标", "政策"]
     freshness_priority: "high"
     requires_date_extraction: true
     max_age_days: 14
-    enabled: true
     parser_hint: "article_list"
-    remarks: "稀土供给与政策核心入口"
-
-  - name: "中国政府网政策库"
-    category: "宏观政策"
-    url: "https://www.gov.cn/zhengce/"
-    source_type: "official_site"
-    reliability: "official"
-    frequency: "daily"
-    tags: ["政策", "产业", "宏观"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 14
-    enabled: true
-    parser_hint: "article_list"
-    remarks: "跨主题高权重来源"
+    remarks: "稀土供给侧核心来源"
 
   - name: "中国人民银行"
-    category: "宏观/债券/黄金"
     url: "https://www.pbc.gov.cn/"
+    enabled: true
+    category: "authoritative_data"
     source_type: "official_site"
     reliability: "official"
     frequency: "daily"
-    tags: ["利率", "流动性", "宏观"]
+    tags: ["利率", "流动性", "货币政策"]
     freshness_priority: "high"
     requires_date_extraction: true
     max_age_days: 14
-    enabled: true
     parser_hint: "article_list"
-    remarks: "债基与宽基的宏观主变量来源"
-
-  - name: "国家发展改革委"
-    category: "宏观政策"
-    url: "https://www.ndrc.gov.cn/"
-    source_type: "official_site"
-    reliability: "official"
-    frequency: "daily"
-    tags: ["宏观", "产业政策", "投资"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 14
-    enabled: true
-    parser_hint: "article_list"
-    remarks: "产业政策与投资节奏的高信号来源"
+    remarks: "债基与宽基宏观核心变量"
 
   - name: "国家统计局"
-    category: "宏观数据"
     url: "https://www.stats.gov.cn/"
-    source_type: "official_site"
-    reliability: "official"
-    frequency: "weekly"
-    tags: ["经济数据", "景气度", "宏观"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 14
     enabled: true
-    parser_hint: "article_list"
-    remarks: "宽基与债券判断的基础数据源"
-
-  - name: "国家外汇管理局"
-    category: "宏观/黄金"
-    url: "https://www.safe.gov.cn/"
+    category: "authoritative_data"
     source_type: "official_site"
     reliability: "official"
     frequency: "daily"
-    tags: ["外汇", "美元", "跨境资金"]
+    tags: ["宏观", "PMI", "社融", "工业数据"]
     freshness_priority: "high"
     requires_date_extraction: true
     max_age_days: 14
-    enabled: true
     parser_hint: "article_list"
-    remarks: "黄金与宏观流动性的辅助高信号来源"
-
-  - name: "中国外汇交易中心"
-    category: "债券/利率"
-    url: "https://www.cfets-nex.com.cn/"
-    source_type: "official_site"
-    reliability: "official"
-    frequency: "daily"
-    tags: ["利率", "债券", "货币市场"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 14
-    enabled: true
-    parser_hint: "article_list"
-    remarks: "债券与利率市场一线数据入口"
-
-  - name: "上交所上市公司公告"
-    category: "上市公司公告"
-    url: "https://www.sse.com.cn/disclosure/listedinfo/announcement/"
-    source_type: "exchange_notice"
-    reliability: "exchange"
-    frequency: "daily"
-    tags: ["公告", "上市公司", "项目进展"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 14
-    enabled: true
-    parser_hint: "notice"
-    remarks: "主题基金成分公司事件的重要来源"
-
-  - name: "南方电网"
-    category: "电网设备"
-    url: "https://www.csg.cn/"
-    source_type: "official_site"
-    reliability: "official"
-    frequency: "daily"
-    tags: ["电网", "项目投资", "招标"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 14
-    enabled: true
-    parser_hint: "article_list"
-    remarks: "电网设备投资与招标的直接信号来源"
-
-  - name: "中国航天科技集团"
-    category: "商用卫星通信"
-    url: "https://www.spacechina.com/"
-    source_type: "official_site"
-    reliability: "official"
-    frequency: "daily"
-    tags: ["航天", "发射", "卫星"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 14
-    enabled: true
-    parser_hint: "article_list"
-    remarks: "卫星产业链发射与项目进展高信号来源"
+    remarks: "宽基基金宏观变量核心来源"
 
   - name: "国家航天局"
-    category: "商用卫星通信"
-    url: "https://www.cnsa.gov.cn/"
+    url: "http://www.cnsa.gov.cn/"
+    enabled: true
+    category: "authoritative_data"
     source_type: "official_site"
     reliability: "official"
     frequency: "daily"
-    tags: ["航天政策", "发射任务", "卫星应用"]
+    tags: ["卫星", "航天", "发射", "政策"]
     freshness_priority: "high"
     requires_date_extraction: true
     max_age_days: 14
-    enabled: true
     parser_hint: "article_list"
-    remarks: "卫星相关政策与任务更新来源"
-
-  - name: "自然资源部"
-    category: "稀土"
-    url: "https://www.mnr.gov.cn/"
-    source_type: "official_site"
-    reliability: "official"
-    frequency: "daily"
-    tags: ["矿产", "稀土资源", "供给"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 14
-    enabled: true
-    parser_hint: "article_list"
-    remarks: "稀土供给端资源政策补充来源"
+    remarks: "商用卫星通信主题官方信息来源"
 
   - name: "上海黄金交易所"
-    category: "黄金"
     url: "https://www.sge.com.cn/"
+    enabled: true
+    category: "authoritative_data"
     source_type: "exchange_notice"
     reliability: "exchange"
     frequency: "daily"
-    tags: ["黄金", "交易规则", "保证金"]
+    tags: ["黄金", "交易", "公告"]
     freshness_priority: "high"
     requires_date_extraction: true
     max_age_days: 14
-    enabled: true
     parser_hint: "notice"
-    remarks: "黄金基金高信号来源"
+    remarks: "黄金基金核心变量来源"
 
-  - name: "易方达基金 002963"
-    category: "基金公司"
-    url: "https://www.efunds.com.cn/fund/002963.shtml"
-    source_type: "fund_company"
-    reliability: "fund_company"
-    frequency: "weekly"
-    tags: ["基金信息", "静态背景"]
-    freshness_priority: "low"
-    requires_date_extraction: true
-    max_age_days: 30
+  - name: "World Gold Council Data"
+    url: "https://www.gold.org/goldhub/data/central-bank-gold-reserves"
     enabled: true
-    parser_hint: "fund_detail"
-    remarks: "静态背景源，不作短期事件主输入"
-
-  - name: "永赢基金"
-    category: "基金公司"
-    url: "https://www.maxwealthfund.com/"
-    source_type: "fund_company"
-    reliability: "fund_company"
+    category: "top_tier_media"
+    source_type: "media"
+    reliability: "industry_media"
     frequency: "weekly"
-    tags: ["基金公告", "产品资料"]
+    tags: ["gold", "central_bank_buying", "reserves", "ETF"]
     freshness_priority: "medium"
     requires_date_extraction: true
     max_age_days: 30
-    enabled: true
-    parser_hint: "fund_notice"
-    remarks: "024194相关背景和公告来源"
+    parser_hint: "article"
+    remarks: "央行购金与黄金储备公开数据补充来源"
 
-  - name: "嘉实基金 011035"
-    category: "基金公司"
-    url: "https://www.jsfund.cn/main/fund/011035/fundRecord.shtml"
-    source_type: "fund_company"
-    reliability: "fund_company"
-    frequency: "weekly"
-    tags: ["基金公告", "产品资料"]
-    freshness_priority: "medium"
-    requires_date_extraction: true
-    max_age_days: 30
+  - name: "上交所公告"
+    url: "https://www.sse.com.cn/disclosure/listedinfo/announcement/"
     enabled: true
-    parser_hint: "fund_notice"
-    remarks: "011035联接基金公告"
-
-  - name: "招商基金 217023"
-    category: "基金公司"
-    url: "https://www.cmfchina.com/web/fundDetail/217023/index.html"
-    source_type: "fund_company"
-    reliability: "fund_company"
-    frequency: "weekly"
-    tags: ["信用债", "基金公告"]
-    freshness_priority: "medium"
+    category: "authoritative_data"
+    source_type: "exchange_notice"
+    reliability: "exchange"
+    frequency: "daily"
+    tags: ["上市公司", "公告", "订单"]
+    freshness_priority: "high"
     requires_date_extraction: true
-    max_age_days: 30
-    enabled: true
-    parser_hint: "fund_detail"
-    remarks: "217023/007951共用底层策略参考"
+    max_age_days: 14
+    parser_hint: "notice"
+    remarks: "主题基金成分公司事件来源"
 
   - name: "中国证券报"
-    category: "媒体"
     url: "https://www.cs.com.cn/"
+    enabled: true
+    category: "top_tier_media"
     source_type: "media"
     reliability: "mainstream_media"
     frequency: "daily"
-    tags: ["资本市场", "政策解读"]
+    tags: ["财经", "政策", "市场"]
     freshness_priority: "medium"
     requires_date_extraction: true
     max_age_days: 7
-    enabled: true
     parser_hint: "article_list"
-    remarks: "主流财经媒体补充源"
+    remarks: "主流财经媒体"
 
-  - name: "上海证券报"
-    category: "媒体"
-    url: "https://www.cnstock.com/"
+  - name: "Reuters Markets"
+    url: "https://www.reuters.com/markets/"
+    enabled: true
+    category: "top_tier_media"
     source_type: "media"
     reliability: "mainstream_media"
     frequency: "daily"
-    tags: ["宏观", "行业", "市场"]
+    tags: ["macro", "rates", "gold"]
     freshness_priority: "medium"
     requires_date_extraction: true
     max_age_days: 7
-    enabled: true
     parser_hint: "article_list"
-    remarks: "主流财经媒体补充源"
+    remarks: "全球宏观与黄金变量补充"
 
   - name: "财联社"
-    category: "快讯"
     url: "https://www.cls.cn/"
-    source_type: "media"
-    reliability: "mainstream_media"
-    frequency: "hourly"
-    tags: ["快讯", "宏观", "市场"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 7
     enabled: true
-    parser_hint: "article_list"
-    remarks: "高频快讯源，优先用于线索发现"
-
-  - name: "财新 RSS"
-    category: "RSS"
-    url: "https://www.caixin.com/rss/"
-    source_type: "rss"
-    reliability: "mainstream_media"
-    frequency: "daily"
-    tags: ["宏观", "政策", "行业"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 7
-    enabled: true
-    parser_hint: "rss"
-    remarks: "免费RSS入口"
-
-  - name: "雪球"
-    category: "社区"
-    url: "https://xueqiu.com/"
-    source_type: "community_forum"
-    reliability: "community_forum"
-    frequency: "hourly"
-    tags: ["社区讨论", "主题线索", "高频"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 3
-    enabled: true
-    parser_hint: "forum_thread"
-    remarks: "仅作线索源，需官方/公告二次确认后再进入主结论"
-
-  - name: "东方财富股吧"
-    category: "社区"
-    url: "https://guba.eastmoney.com/"
-    source_type: "community_forum"
-    reliability: "community_forum"
-    frequency: "hourly"
-    tags: ["股吧", "帖子", "高频"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 3
-    enabled: true
-    parser_hint: "forum_thread"
-    remarks: "仅作线索源，默认不直接作为主证据"
-
-  - name: "集思录"
-    category: "社区"
-    url: "https://www.jisilu.cn/"
-    source_type: "community_forum"
-    reliability: "community_forum"
-    frequency: "hourly"
-    tags: ["投资社区", "帖子", "债券讨论"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 3
-    enabled: true
-    parser_hint: "forum_thread"
-    remarks: "适合债券与策略讨论线索，需二次确认"
-
-  - name: "微博财经"
-    category: "自媒体"
-    url: "https://www.weibo.com/"
-    source_type: "self_media"
-    reliability: "self_media"
-    frequency: "hourly"
-    tags: ["自媒体", "实时舆情", "线索"]
-    freshness_priority: "high"
-    requires_date_extraction: true
-    max_age_days: 3
-    enabled: true
-    parser_hint: "social_feed"
-    remarks: "噪音高，仅作早期线索，不可直接支撑强结论"
-
-  - name: "World Gold Council"
-    category: "黄金"
-    url: "https://www.gold.org/"
-    source_type: "official_site"
+    category: "top_tier_media"
+    source_type: "industry_media"
     reliability: "industry_media"
-    frequency: "weekly"
-    tags: ["黄金需求", "央行购金", "全球黄金"]
+    frequency: "daily"
+    tags: ["产业", "公司", "公告"]
     freshness_priority: "medium"
     requires_date_extraction: true
-    max_age_days: 30
-    enabled: true
+    max_age_days: 7
     parser_hint: "article_list"
-    remarks: "黄金中长期背景与需求结构补充"
+    remarks: "产业链事件补充"
 
-  - name: "LBMA"
-    category: "黄金"
-    url: "https://www.lbma.org.uk/"
-    source_type: "official_site"
-    reliability: "industry_media"
+  - name: "MacroMicro 公开文章"
+    url: "https://www.macromicro.me/charts"
+    enabled: true
+    category: "specialist_research"
+    source_type: "specialist_blog"
+    reliability: "specialist"
     frequency: "weekly"
-    tags: ["黄金市场", "贵金属", "基准与行业信息"]
-    freshness_priority: "medium"
-    requires_date_extraction: true
-    max_age_days: 30
-    enabled: true
-    parser_hint: "article_list"
-    remarks: "黄金行业侧信息补充"
-
-  - name: "交易所/监管站点搜索入口"
-    category: "search_seed"
-    url: "https://www.gov.cn/"
-    source_type: "search_seed"
-    reliability: "official"
-    frequency: "daily"
-    tags: ["站内搜索", "公告定位", "最近7天", "本周", "最新"]
+    tags: ["宏观", "通胀", "黄金"]
     freshness_priority: "low"
     requires_date_extraction: true
-    max_age_days: 7
+    max_age_days: 14
+    parser_hint: "article"
+    remarks: "仅做辅助解释"
+
+  - name: "Substack 免费研究文章"
+    url: "https://substack.com/browse/business"
     enabled: true
-    parser_hint: "seed"
-    remarks: "用于发现高信号详情页"
+    category: "specialist_research"
+    source_type: "specialist_blog"
+    reliability: "specialist"
+    frequency: "weekly"
+    tags: ["行业", "专题", "研究"]
+    freshness_priority: "low"
+    requires_date_extraction: true
+    max_age_days: 14
+    parser_hint: "article"
+    remarks: "仅辅助，不可单独定方向"
+
+  - name: "雪球热门讨论"
+    url: "https://xueqiu.com/hq"
+    enabled: true
+    category: "sentiment_sources"
+    source_type: "community_forum"
+    reliability: "community"
+    frequency: "hourly"
+    tags: ["情绪", "讨论"]
+    freshness_priority: "low"
+    requires_date_extraction: true
+    max_age_days: 3
+    parser_hint: "forum"
+    remarks: "仅情绪观察"
+
+  - name: "Reddit Investing"
+    url: "https://www.reddit.com/r/investing/"
+    enabled: true
+    category: "sentiment_sources"
+    source_type: "community_forum"
+    reliability: "community"
+    frequency: "hourly"
+    tags: ["sentiment", "macro"]
+    freshness_priority: "low"
+    requires_date_extraction: true
+    max_age_days: 3
+    parser_hint: "forum"
+    remarks: "仅情绪补充"

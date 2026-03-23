@@ -9,12 +9,17 @@ def parse_date(date_str: str) -> datetime | None:
     """Parse flexible date strings into UTC datetime."""
     if not date_str:
         return None
+
     cleaned = date_str.replace("年", "-").replace("月", "-").replace("日", "")
-    cleaned = cleaned.replace("/", "-").strip()
+    cleaned = cleaned.replace("/", "-").replace(".", "-").strip()
     cleaned = cleaned.split(" ", 1)[0]
-    for fmt in ("%Y-%m-%d", "%y-%m-%d"):
+
+    for fmt in ("%Y-%m-%d", "%y-%m-%d", "%Y-%m", "%Y%m%d"):
         try:
-            return datetime.strptime(cleaned, fmt).replace(tzinfo=timezone.utc)
+            dt = datetime.strptime(cleaned, fmt)
+            if fmt == "%Y-%m":
+                dt = dt.replace(day=1)
+            return dt.replace(tzinfo=timezone.utc)
         except ValueError:
             continue
     return None

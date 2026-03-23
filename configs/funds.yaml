@@ -8,6 +8,7 @@ funds:
     bullish_triggers: ["电网投资上调", "特高压项目加速", "龙头公司中标超预期"]
     bearish_triggers: ["电网资本开支下修", "项目延期", "上游涨价侵蚀利润"]
     judgement_path: "thematic_path"
+    framework_checks: ["政策", "景气", "价格", "订单", "供需"]
     notes: ["重点跟踪国家电网和南网招标节奏", "政策与订单比情绪更重要"]
 
   - code: "011035"
@@ -19,6 +20,7 @@ funds:
     bullish_triggers: ["配额收紧", "价格上行", "高性能磁材需求增长"]
     bearish_triggers: ["供给释放超预期", "价格回落", "需求下修"]
     judgement_path: "thematic_path"
+    framework_checks: ["政策", "景气", "价格", "订单", "供需"]
     notes: ["政策与供需格局是核心变量"]
 
   - code: "024194"
@@ -30,6 +32,7 @@ funds:
     bullish_triggers: ["发射成功", "牌照推进", "重大订单落地"]
     bearish_triggers: ["发射延期或失败", "政策推进不及预期", "订单取消"]
     judgement_path: "thematic_path"
+    framework_checks: ["政策", "景气", "价格", "订单", "供需"]
     notes: ["短期催化看发射和订单，长期看组网与商业化"]
 
   - code: "007028"
@@ -41,6 +44,7 @@ funds:
     bullish_triggers: ["流动性宽松", "风险偏好回升", "中盘风格修复"]
     bearish_triggers: ["流动性收紧", "风险偏好走弱", "盈利下修"]
     judgement_path: "broad_path"
+    framework_checks: ["流动性", "风格", "风险偏好", "宏观"]
     notes: ["不按单一产业新闻判断", "重点看宏观与风格变量"]
 
   - code: "217023"
@@ -52,6 +56,7 @@ funds:
     bullish_triggers: ["利率下行", "信用利差收窄", "违约风险缓释"]
     bearish_triggers: ["利率上行", "信用利差走扩", "信用事件增多"]
     judgement_path: "bond_path"
+    framework_checks: ["利率", "信用利差", "供需", "申赎"]
     notes: ["净值弹性受久期与信用暴露共同影响"]
 
   - code: "007951"
@@ -63,6 +68,7 @@ funds:
     bullish_triggers: ["利率下行", "信用利差收窄", "违约风险缓释"]
     bearish_triggers: ["利率上行", "信用利差走扩", "信用事件增多"]
     judgement_path: "bond_path"
+    framework_checks: ["利率", "信用利差", "供需", "申赎"]
     notes: ["与217023底层策略一致，费用结构不同"]
 
   - code: "002963"
@@ -74,4 +80,6 @@ funds:
     bullish_triggers: ["实际利率下行", "美元走弱", "避险需求上升", "央行购金增加"]
     bearish_triggers: ["实际利率上行", "美元走强", "避险需求回落"]
     judgement_path: "gold_path"
+    framework_checks: ["金价", "美元", "实际利率", "避险", "央行购金", "ETF流向"]
+    gold_driver_priority: ["金价", "美元", "实际利率", "美联储路径", "ETF资金流", "央行购金", "地缘避险", "通胀预期"]
     notes: ["短期看宏观冲击，长期看实际利率与全球风险偏好"]

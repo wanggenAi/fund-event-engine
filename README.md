@@ -1,128 +1,210 @@
 # fund-event-engine
 
-基金事件驱动判断引擎（MVP）。
+基金事件驱动判断引擎（研究辅助版，openclaw 友好）。
 
-项目定位：
-- 这是“事件 -> 资产/行业 -> 基金”的方向判断系统。
-- 不是价格点位预测器，不输出买卖建议。
+## 项目定位
+- 目标是做“事件 -> 核心变量 -> 基金”的方向判断，不做净值/股价点位预测。
+- 输出必须可追溯到事件与证据链。
+- 证据不足时默认中性/待观察，不为结论而结论。
 
-## 当前覆盖基金
-- 025832 天弘中证电网设备主题指数发起A
-- 011035 嘉实中证稀土产业ETF联接A
-- 024194 永赢国证商用卫星通信产业ETF发起联接A
-- 007028 易方达中证500ETF联接发起式A
-- 217023 招商信用增强债券A
-- 007951 招商信用增强债券C
-- 002963 易方达黄金ETF联接C
-
-## 项目结构
-- `configs/`: 基金画像、事件分类、评分与数据源配置。
-- `src/collectors/`: 免费公开源采集模块骨架。
-- `src/parsers/`: 文本清洗与样例解析。
-- `src/event_engine/`: 事件抽取、分类、影响链、评分、反证检查。
-- `src/fund_mapper/`: 基金画像加载、事件映射、基金级聚合判断。
-- `src/reports/`: 日/周/月报告渲染与 demo 执行脚本。
-- `prompts/`: 可复用提示词（结构化、可程序加载）。
-- `examples/`: 回归样例。
-- `data/events`, `data/snapshots`: 结构化输出。
-- `reports/`: Markdown 报告输出。
+## 覆盖基金
+- `025832` 天弘中证电网设备主题指数发起A
+- `011035` 嘉实中证稀土产业ETF联接A
+- `024194` 永赢国证商用卫星通信产业ETF发起联接A
+- `007028` 易方达中证500ETF联接发起式A
+- `217023` 招商信用增强债券A
+- `007951` 招商信用增强债券C
+- `002963` 易方达黄金ETF联接C
 
 ## 数据源原则
-仅使用免费公开信息：
-- 官方网站、监管与交易所公告
-- 基金公司公开页面
-- 主流财经媒体
-- RSS 与站点搜索入口
+仅使用免费公开信息，不使用付费 API、付费爬虫、付费数据库。
 
-不使用付费 API、付费爬虫服务、付费数据库。
+- A层 `authoritative_data`：官方公告/监管/交易所/基金公司/上市公司
+- B层 `top_tier_media`：主流财经与高质量行业媒体
+- C层 `specialist_research`：博客/专题（仅辅助）
+- D层 `sentiment_sources`：论坛/社区/社媒（仅情绪补充）
 
-## 判断框架
-对每只基金输出：
-- 3d：利好 / 利空 / 中性
-- 2w：利好 / 利空 / 中性
-- 3m：利好 / 利空 / 中性
-- 长期逻辑：强化 / 不变 / 弱化
+## Freshness Gating（硬门槛）
+支持 `3d/7d/14d/30d` 窗口，默认近期优先。
 
-并附带：
-- 核心驱动
-- 影响链条
-- 反证与风险
-- 观察点
-- 置信度
+事件层保留字段：
+- `published_at`
+- `event_date`
+- `collected_at`
+- `freshness_bucket`
+- `is_stale`
+- `date_uncertain`
+
+策略要点：
+- 过时/日期不确定事件默认降级或剔除主结论。
+- 重复旧闻抑制，不重复计分。
+- 近期缺少 A/B 新增证据时，默认中性/待观察。
+
+## 工程结构
+- `configs/`：基金画像、来源分层、评分参数、taxonomy
+- `src/collectors/`：公开源抓取、结构化信号补充
+- `src/parsers/`：正文清洗、噪音过滤
+- `src/event_engine/`：事件抽取、影响链、打分
+- `src/fund_mapper/`：事件到基金映射
+- `src/pipeline/`：主流程与 openclaw 编排入口
+- `src/reports/`：demo 和报告输出
+- `src/utils/report_quality.py`：自动质量评分（稳定性/一致性/参考价值）
+- `examples/`：样例输入
 
 ## 快速开始
-### 1) 运行新 demo 链路（推荐）
 ```bash
 python3 -m src.reports.run_demo
 ```
 
-运行后将生成：
-- `data/events/demo_events.json`
-- `data/snapshots/demo_signals.json`
-- `data/snapshots/demo_snapshot.json`
-- `reports/demo_output.md`
-
-### 2) 运行 openclaw 友好 pipeline
+## 正式执行（推荐）
 ```bash
-python3 -m src.pipeline.run --window-days 7
+python3 -m src.pipeline.run \
+  --window-days 7 \
+  --collect-sources \
+  --no-include-examples \
+  --max-sources 20 \
+  --max-items-per-source 3 \
+  --collect-timeout 12 \
+  --verbose-collect
 ```
 
-可选参数：
-- `--window-days 3|7|14|30`：严格新鲜度窗口（默认 7）。
-- `--fund 011035 --fund 002963`：仅输出指定基金。
-- `--events-out/--signals-out/--reports-out/--markdown-out`：自定义产物路径。
-
-### 3) 兼容旧 MVP 主链路
-项目保留 `scripts/run_mvp.py` 与 `scripts/run_report.sh`，用于你现有 sample_data 流程。
-
-### 4) 一键执行（抓取 + 分析 + 报告）
+仅跑指定基金：
 ```bash
-scripts/run_one_click.sh 002963
+python3 -m src.pipeline.run \
+  --window-days 7 \
+  --collect-sources \
+  --no-include-examples \
+  --fund 025832 --fund 011035 --fund 024194
 ```
 
-说明：
-- 默认每次都会先抓取网页并覆盖旧的 `sample_data/<fund_code>_docs.json`，再运行报告分析。
-- 最终报告正文输出到 stdout，便于 Telegram/OpenClaw 直接回传。
-- 常用环境变量：
-  - `AUTO_FETCH=0`：跳过抓取，直接用现有 input
-  - `MAX_URLS=20`：抓取 URL 上限
-  - `BACKEND=mock|openai_compat`
+## 避免旧文件混淆（时间戳输出）
+```bash
+TS=$(date +%Y%m%d_%H%M%S)
+python3 -m src.pipeline.run \
+  --window-days 7 \
+  --collect-sources \
+  --no-include-examples \
+  --events-out data/events/pipeline_events_${TS}.json \
+  --signals-out data/snapshots/pipeline_signals_${TS}.json \
+  --reports-out data/snapshots/pipeline_reports_${TS}.json \
+  --aggregate-out outputs/pipeline_aggregate_${TS}.json \
+  --mapped-events-out outputs/pipeline_mapped_events_${TS}.json \
+  --markdown-out reports/pipeline_report_${TS}.md
+```
 
-## 关键配置文件
-- `configs/funds.yaml`: 7只基金结构化画像与驱动因子。
-- `configs/taxonomy.yaml`: 事件分类体系、同义词、适用基金类型。
-- `configs/scoring.yaml`: 来源/新鲜度/强度权重与阈值。
-- `configs/sources.yaml`: 免费公开来源清单。
+## openclaw 一键执行与 Telegram 推送
+下面这段可以直接给 openclaw 执行。
 
-## Prompts
-- `prompts/extract_event.md`
-- `prompts/map_event_to_fund.md`
-- `prompts/short_term_judgement.md`
-- `prompts/long_term_logic_review.md`
-- `prompts/contradiction_check.md`
+前置环境变量：
+- `TG_BOT_TOKEN`：Telegram Bot Token
+- `TG_CHAT_ID`：你的 chat id（个人或群）
 
-## How To Use With Openclaw
-推荐将 pipeline 拆分为可编排步骤，并消费稳定 JSON 契约：
-1. `python3 -m src.pipeline.run --window-days 7`
-2. 读取 `data/events/pipeline_events.json`
-3. 读取 `data/snapshots/pipeline_signals.json`
-4. 读取 `data/snapshots/pipeline_reports.json`
-5. 可选回传 `reports/pipeline_report.md` 给 Telegram
+也可以直接用仓库脚本（推荐）：
+```bash
+TG_BOT_TOKEN=xxxx TG_CHAT_ID=xxxx \
+bash scripts/run_and_push_telegram.sh
+```
 
-字段稳定性说明：
-- 事件层保留 `published_at/event_date/collected_at/freshness_bucket/is_stale`
-- 基金层保留 `analysis_window/recent_event_count/stale_event_count_filtered/direction_3d/direction_2w/direction_3m/long_term_logic/confidence/warnings`
-- `evidence_class` 说明：`event_evidence`（主证据）、`background_evidence`（背景）、`clue_only`（社区/自媒体线索，不直接驱动结论）
+指定基金示例：
+```bash
+TG_BOT_TOKEN=xxxx TG_CHAT_ID=xxxx \
+FUNDS="025832 011035 024194" \
+bash scripts/run_and_push_telegram.sh
+```
 
-新鲜度硬约束：
-- 超过分析窗口的事件默认不纳入主结论
-- 日期不确定事件在 14 天及以下窗口默认降级为背景证据
-- 若近期新增高质量事件不足，默认输出中性/待观察
+```bash
+set -euo pipefail
 
-## 路线图
-- v0.1：最小可运行链路（样例输入 -> 基金判断 -> JSON/Markdown）
-- v0.2：历史样例验证与评分回看
-- v0.3：自动日报/周报与更稳定的数据采集
+TS=$(date +%Y%m%d_%H%M%S)
+EVENTS="data/events/pipeline_events_${TS}.json"
+SIGNALS="data/snapshots/pipeline_signals_${TS}.json"
+REPORTS="data/snapshots/pipeline_reports_${TS}.json"
+AGG="outputs/pipeline_aggregate_${TS}.json"
+MAPPED="outputs/pipeline_mapped_events_${TS}.json"
+MD="reports/pipeline_report_${TS}.md"
+
+python3 -m src.pipeline.run \
+  --window-days 7 \
+  --collect-sources \
+  --no-include-examples \
+  --max-sources 20 \
+  --max-items-per-source 3 \
+  --collect-timeout 12 \
+  --events-out "${EVENTS}" \
+  --signals-out "${SIGNALS}" \
+  --reports-out "${REPORTS}" \
+  --aggregate-out "${AGG}" \
+  --mapped-events-out "${MAPPED}" \
+  --markdown-out "${MD}"
+
+# 1) 发送 Markdown 报告
+curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" \
+  -F chat_id="${TG_CHAT_ID}" \
+  -F document=@"${MD}" \
+  -F caption="fund-event-engine 报告 ${TS}"
+
+# 2) 发送聚合 JSON（便于自动化读取）
+curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" \
+  -F chat_id="${TG_CHAT_ID}" \
+  -F document=@"${AGG}" \
+  -F caption="pipeline_aggregate ${TS}"
+```
+
+## 运行时动态调参（不改仓库配置）
+```bash
+python3 -m src.pipeline.run \
+  --fund 002963 \
+  --window-days 7 \
+  --collect-sources \
+  --no-include-examples \
+  --scoring-override-json '{"proxy_controls_by_fund_code":{"002963":{"max_proxy_share_in_main":0.9,"auto_downgrade_strength_when_proxy_dominant":false}}}'
+```
+
+也支持文件覆盖：
+```bash
+python3 -m src.pipeline.run \
+  --window-days 7 \
+  --scoring-override-file configs/scoring_override.json
+```
+
+## 输出文件与稳定契约
+主输出：
+- 事件层：`data/events/*.json`
+- 信号层：`data/snapshots/*signals*.json`
+- 报告层：`data/snapshots/*reports*.json`
+- 聚合层：`outputs/*aggregate*.json`
+- Markdown：`reports/*.md`
+
+openclaw 重点字段：
+- 事件层：`is_page_chrome`, `is_noise`, `content_quality_score`, `extractable_event_score`, `published_at`, `event_date`, `is_stale`
+- 信号层：`source_tier`, `evidence_tier`, `include_in_main`, `evidence_class`, `gated_reason`, `score`, `variable_evidence_type`, `variable_evidence_note`
+- 报告层：`direction_3d`, `direction_2w`, `direction_3m`, `long_term_logic`, `conclusion_strength`, `warnings`, `proxy_event_share_main`
+- 报告层（自动质量）：`source_stability_score`, `historical_consistency_score`, `reference_value_score`, `quality_flags`
+- 聚合层补充：`runtime_scoring_override_applied`, `runtime_scoring_override_keys`, `quality_meta`
+
+## 评分与 proxy 控制（`configs/scoring.yaml`）
+- `evidence_mode_weight`：`direct/proxy` 分数权重
+- `proxy_controls`：全局 proxy 置信度与占比阈值
+- `proxy_controls_by_fund_type`：按基金类型覆盖
+- `proxy_controls_by_fund_code`：按基金代码覆盖（优先级最高）
+
+## 自动质量评分
+每次正式运行后自动计算并写入报告：
+- 源稳定性分 `source_stability_score`
+- 历史一致性分 `historical_consistency_score`
+- 参考价值分 `reference_value_score`
+- 质量标记 `quality_flags`
+
+历史文件默认：
+- `outputs/history/fund_report_history.json`
+
+可通过参数覆盖：
+- `--history-path outputs/history/your_history.json`
+
+## 最小测试
+```bash
+python3 -m unittest discover -s tests -p "test_*unittest.py" -v
+```
 
 ## 风险声明
-本项目输出仅用于研究与信息整理，不构成任何投资建议。
+本项目输出仅用于研究与信息整理，不构成投资建议。

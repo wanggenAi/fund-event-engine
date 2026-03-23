@@ -18,6 +18,9 @@ def parse_case_markdown(path: Path) -> Dict[str, str]:
 
     return {
         "case_file": path.name,
+        "source_name": section("来源名称"),
+        "source_type": section("来源类型"),
+        "published_at": section("事件日期"),
         "raw_text": section("模拟新闻/公告正文"),
         "target_funds": section("对应目标基金"),
         "expected": section("预期判断方向"),

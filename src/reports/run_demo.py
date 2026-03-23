@@ -30,6 +30,18 @@ def run() -> None:
     save_json(ROOT / "data" / "events" / "demo_events.json", [x.to_dict() for x in events])
     save_json(ROOT / "data" / "snapshots" / "demo_signals.json", [x.to_dict() for x in signals])
     save_json(ROOT / "data" / "snapshots" / "demo_snapshot.json", [x.to_dict() for x in reports])
+    save_json(ROOT / "outputs" / "demo_mapped_events.json", [x.to_dict() for x in signals])
+
+    aggregate = {
+        "analysis_window": f"{window_days}d",
+        "event_count": len(events),
+        "signal_count": len(signals),
+        "report_count": len(reports),
+        "stale_events_filtered": sum(1 for x in events if x.is_stale),
+        "noise_events_filtered": sum(1 for x in events if x.is_noise or x.is_page_chrome),
+    }
+    save_json(ROOT / "outputs" / "demo_aggregate.json", aggregate)
+
     (ROOT / "reports").mkdir(parents=True, exist_ok=True)
     (ROOT / "reports" / "demo_output.md").write_text(render_markdown(reports), encoding="utf-8")
 
