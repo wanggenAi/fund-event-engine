@@ -41,8 +41,20 @@ def _expand_key(key: str) -> list[str]:
     return [c for c in candidates if len(c) >= 2]
 
 
+# Primary factor overrides: higher weight means the keyword drives relevance more than generic ones.
+_PRIMARY_FACTOR_WEIGHTS: Dict[str, Dict[str, float]] = {
+    "gold": {"实际利率": 3.0, "美元指数": 3.0, "央行购金": 3.0, "避险": 2.0},
+    "bond": {"信用利差": 3.0, "违约": 3.0, "久期": 2.0, "利率": 2.0},
+    "thematic_equity": {},
+    "broad_equity": {"流动性": 2.0, "风险偏好": 2.0},
+}
+
+
 def calc_relevance(event_text: str, fund_profile: Dict[str, Any]) -> float:
-    """Compute rough relevance by keyword overlap."""
+    """Compute weighted relevance by keyword overlap, with primary-factor boosting."""
+    ftype = str(fund_profile.get("type", ""))
+    primary_weights = _PRIMARY_FACTOR_WEIGHTS.get(ftype, {})
+
     keys = []
     keys.extend(fund_profile.get("sectors", []))
     keys.extend(fund_profile.get("factors", []))
@@ -50,22 +62,26 @@ def calc_relevance(event_text: str, fund_profile: Dict[str, Any]) -> float:
     keys.extend(fund_profile.get("bearish_triggers", []))
     if not keys:
         return 0.0
-    hit = 0
-    strong_hit = 0
+
+    weighted_hit = 0.0
+    max_possible = 0.0
     for k in keys:
         if not k:
             continue
-        expanded = _expand_key(str(k))
-        matched = [token for token in expanded if token in event_text]
-        if matched:
-            hit += 1
-            # Treat direct sector/factor token matches as stronger evidence.
-            if any(token in event_text for token in expanded[:2]):
-                strong_hit += 1
+        key_str = str(k)
+        # Determine weight for this key
+        weight = 1.0
+        for pw_key, pw_val in primary_weights.items():
+            if pw_key in key_str:
+                weight = pw_val
+                break
+        max_possible += weight
+        expanded = _expand_key(key_str)
+        if any(token in event_text for token in expanded):
+            weighted_hit += weight
 
-    base = hit / max(2, len(keys) // 3)
-    boost = min(0.35, strong_hit * 0.08)
-    score = max(0.0, min(1.0, base + boost))
+    base = weighted_hit / max(1.0, max_possible)
+    score = max(0.0, min(1.0, base))
 
     ftype = str(fund_profile.get("type", ""))
     fname = str(fund_profile.get("name", ""))

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from pathlib import Path
 
 from src.pipeline.tasks import (
@@ -17,6 +18,7 @@ from src.pipeline.tasks import (
     set_runtime_scoring_override,
 )
 from src.utils.cache import save_json
+from src.utils.prediction_history import append_prediction_snapshots
 from src.utils.report_quality import enrich_reports_with_quality
 
 
@@ -31,6 +33,67 @@ def _deep_merge(base: dict, override: dict) -> dict:
         else:
             merged[k] = v
     return merged
+
+
+def _topn(counter: Counter, n: int = 10) -> list[dict]:
+    return [{"key": k, "count": v} for k, v in counter.most_common(n)]
+
+
+def _build_source_mix_meta(signals: list) -> dict:
+    """Build source contribution structure for observability and optimization."""
+    total_by_tier: Counter = Counter()
+    main_by_tier: Counter = Counter()
+    total_by_category: Counter = Counter()
+    main_by_category: Counter = Counter()
+    main_by_source: Counter = Counter()
+    for s in signals:
+        total_by_tier[s.source_tier] += 1
+        total_by_category[s.source_category] += 1
+        if s.include_in_main:
+            main_by_tier[s.source_tier] += 1
+            main_by_category[s.source_category] += 1
+            main_by_source[s.source] += 1
+    return {
+        "total_by_tier": dict(total_by_tier),
+        "main_by_tier": dict(main_by_tier),
+        "total_by_category": dict(total_by_category),
+        "main_by_category": dict(main_by_category),
+        "top_main_sources": _topn(main_by_source, n=12),
+    }
+
+
+def _load_source_feedback_override(path: str) -> dict:
+    """Load source-performance multipliers as runtime scoring override."""
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        payload = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    fb = payload.get("source_feedback", {}) if isinstance(payload, dict) else {}
+    if not isinstance(fb, dict):
+        return {}
+    multipliers = fb.get("source_multipliers", {})
+    multipliers_by_ft = fb.get("source_multipliers_by_fund_type", {})
+    multipliers_by_hz = fb.get("source_multipliers_by_horizon", {})
+    multipliers_by_ft_hz = fb.get("source_multipliers_by_fund_type_horizon", {})
+    valid_global = isinstance(multipliers, dict) and bool(multipliers)
+    valid_by_ft = isinstance(multipliers_by_ft, dict) and bool(multipliers_by_ft)
+    valid_by_hz = isinstance(multipliers_by_hz, dict) and bool(multipliers_by_hz)
+    valid_by_ft_hz = isinstance(multipliers_by_ft_hz, dict) and bool(multipliers_by_ft_hz)
+    if not any([valid_global, valid_by_ft, valid_by_hz, valid_by_ft_hz]):
+        return {}
+    payload = {"source_feedback": {}}
+    if valid_global:
+        payload["source_feedback"]["source_multiplier_by_name"] = multipliers
+    if valid_by_ft:
+        payload["source_feedback"]["source_multiplier_by_fund_type"] = multipliers_by_ft
+    if valid_by_hz:
+        payload["source_feedback"]["source_multiplier_by_horizon"] = multipliers_by_hz
+    if valid_by_ft_hz:
+        payload["source_feedback"]["source_multiplier_by_fund_type_horizon"] = multipliers_by_ft_hz
+    return payload
 
 
 def parse_args() -> argparse.Namespace:
@@ -88,6 +151,22 @@ def parse_args() -> argparse.Namespace:
         default=str(ROOT / "outputs" / "history" / "fund_report_history.json"),
         help="History file path used for automated consistency scoring",
     )
+    p.add_argument(
+        "--prediction-history-path",
+        default=str(ROOT / "outputs" / "history" / "fund_prediction_history.json"),
+        help="Prediction history path used for realized-outcome evaluation",
+    )
+    p.add_argument(
+        "--source-performance-file",
+        default=str(ROOT / "outputs" / "history" / "source_performance.json"),
+        help="Source performance feedback file from src.pipeline.evaluate",
+    )
+    p.add_argument(
+        "--source-feedback",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Enable runtime source-feedback multiplier from evaluation history",
+    )
     return p.parse_args()
 
 
@@ -95,6 +174,10 @@ def main() -> None:
     """Execute full pipeline and emit stable JSON + markdown artifacts."""
     args = parse_args()
     runtime_scoring_override = {}
+    source_feedback_multiplier_count = 0
+    source_feedback_fund_type_bucket_count = 0
+    source_feedback_horizon_bucket_count = 0
+    source_feedback_fund_type_horizon_bucket_count = 0
     if args.scoring_override_file:
         runtime_scoring_override = json.loads(Path(args.scoring_override_file).read_text(encoding="utf-8"))
     if args.scoring_override_json:
@@ -106,6 +189,15 @@ def main() -> None:
         runtime_scoring_override = _deep_merge(runtime_scoring_override, inline_override)
     if runtime_scoring_override and not isinstance(runtime_scoring_override, dict):
         raise SystemExit("Runtime scoring override must be a JSON object")
+    if args.source_feedback:
+        fb_override = _load_source_feedback_override(args.source_performance_file)
+        if fb_override:
+            sf = fb_override.get("source_feedback", {})
+            source_feedback_multiplier_count = len(sf.get("source_multiplier_by_name", {}))
+            source_feedback_fund_type_bucket_count = len(sf.get("source_multiplier_by_fund_type", {}))
+            source_feedback_horizon_bucket_count = len(sf.get("source_multiplier_by_horizon", {}))
+            source_feedback_fund_type_horizon_bucket_count = len(sf.get("source_multiplier_by_fund_type_horizon", {}))
+            runtime_scoring_override = _deep_merge(runtime_scoring_override, fb_override)
     set_runtime_scoring_override(runtime_scoring_override)
 
     raw_docs = []
@@ -120,6 +212,7 @@ def main() -> None:
             timeout=args.collect_timeout,
             strict_collect=args.strict_collect,
             verbose_collect=args.verbose_collect,
+            fund_codes=args.fund,
         )
         raw_docs.extend(source_docs)
     if not raw_docs:
@@ -129,6 +222,11 @@ def main() -> None:
     signals = map_events_to_funds(events, fund_codes=args.fund, window_days=args.window_days)
     reports = aggregate_reports(signals, window_days=args.window_days, fund_codes=args.fund)
     quality_meta = enrich_reports_with_quality(reports, collect_stats=collect_stats, history_path=args.history_path)
+    prediction_meta = append_prediction_snapshots(
+        reports,
+        analysis_window_days=args.window_days,
+        prediction_history_path=args.prediction_history_path,
+    )
 
     save_json(Path(args.events_out), [x.to_dict() for x in events])
     save_json(Path(args.signals_out), [x.to_dict() for x in signals])
@@ -141,6 +239,7 @@ def main() -> None:
 
     stale_count = sum(1 for x in events if x.is_stale)
     noise_count = sum(1 for x in events if x.is_noise or x.is_page_chrome)
+    source_mix_meta = _build_source_mix_meta(signals)
 
     aggregate_payload = {
         "analysis_window": f"{args.window_days}d",
@@ -157,7 +256,15 @@ def main() -> None:
         "markdown_output": str(Path(args.markdown_out)),
         "runtime_scoring_override_applied": bool(runtime_scoring_override),
         "runtime_scoring_override_keys": sorted(runtime_scoring_override.keys()) if runtime_scoring_override else [],
+        "source_feedback_enabled": bool(args.source_feedback),
+        "source_feedback_multiplier_count": int(source_feedback_multiplier_count),
+        "source_feedback_fund_type_bucket_count": int(source_feedback_fund_type_bucket_count),
+        "source_feedback_horizon_bucket_count": int(source_feedback_horizon_bucket_count),
+        "source_feedback_fund_type_horizon_bucket_count": int(source_feedback_fund_type_horizon_bucket_count),
+        "source_feedback_file": args.source_performance_file,
         "quality_meta": quality_meta,
+        "prediction_meta": prediction_meta,
+        "source_mix_meta": source_mix_meta,
     }
     save_json(Path(args.aggregate_out), aggregate_payload)
     print(json.dumps(aggregate_payload, ensure_ascii=False, indent=2))

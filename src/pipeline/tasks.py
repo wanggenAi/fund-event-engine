@@ -108,6 +108,13 @@ def _news_title_relevant(title: str) -> bool:
         "黄金储备",
         "gold reserve",
         "central bank gold",
+        "永磁",
+        "氧化镨钕",
+        "镨钕",
+        "镝",
+        "铽",
+        "出口管制",
+        "配额",
     ]
     t = title.lower()
     return any(k in title for k in keys) or ("comex" in t)
@@ -138,9 +145,19 @@ def _google_news_tier(title: str) -> str:
         "World Gold Council",
         "Bloomberg",
         "CNBC",
+        "Financial Times",
+        "WSJ",
+        "华尔街日报",
+        "FT中文网",
+        "Kitco",
+        "Fastmarkets",
+        "SMM",
+        "上海有色网",
+        "Mysteel",
+        "金十数据",
     }
     mid = {"新浪财经", "每日经济新闻", "21财经", "界面新闻", "华尔街见闻"}
-    low = {"中金在线", "手机新浪网", "财富号", "搜狐", "网易号", "百家号", "同花顺"}
+    low = {"中金在线", "手机新浪网", "财富号", "搜狐", "网易号", "百家号", "同花顺", "股吧"}
 
     if any(x in publisher for x in high):
         return "B"
@@ -233,8 +250,43 @@ def load_source_documents(
     timeout: float = 10.0,
     strict_collect: bool = False,
     verbose_collect: bool = False,
+    fund_codes: Sequence[str] | None = None,
 ) -> tuple[List[RawDocument], Dict[str, Any]]:
     """Collect docs from enabled source config and convert to raw contracts."""
+    funds = load_fund_profiles()
+    by_code = {str(f.get("code", "")): f for f in funds}
+    target_funds = [by_code[c] for c in (fund_codes or []) if c in by_code] if fund_codes else funds
+
+    categories = [str(f.get("type", "")) for f in target_funds]
+    has_gold = "gold" in categories
+    has_bond = "bond" in categories
+    has_broad = "broad_equity" in categories
+    has_thematic = "thematic_equity" in categories
+    names = " ".join([str(f.get("name", "")) for f in target_funds])
+
+    required_tags: List[str] = []
+    if has_gold or "黄金" in names:
+        required_tags.extend(["黄金", "gold"])
+    if has_bond:
+        required_tags.extend(["利率", "信用"])
+    if has_broad:
+        required_tags.extend(["宏观", "流动性"])
+    if "稀土" in names:
+        required_tags.extend(["稀土", "镨钕"])
+    if "电网" in names:
+        required_tags.extend(["电网", "特高压"])
+    if "卫星" in names:
+        required_tags.extend(["卫星", "商业航天"])
+    required_tags = list(dict.fromkeys(required_tags))
+
+    category_quotas: Dict[str, int] = {"authoritative_data": 2, "top_tier_media": 2}
+    if has_thematic:
+        category_quotas["top_tier_media"] = 3
+    if has_gold or has_bond:
+        category_quotas["authoritative_data"] = 3
+    if has_gold and has_thematic:
+        category_quotas["specialist_research"] = 1
+
     collected, stats = collect_documents_from_sources(
         max_sources=max_sources,
         max_items_per_source=max_items_per_source,
@@ -242,10 +294,12 @@ def load_source_documents(
         timeout=timeout,
         strict=strict_collect,
         verbose=verbose_collect,
+        category_quotas=category_quotas,
+        required_tags=required_tags,
     )
 
     # Targeted free news feed to avoid homepage-only noise.
-    fund_profiles = load_fund_profiles()
+    fund_profiles = target_funds
     query_terms: List[str] = []
     rare_earth_queries: List[str] = []
     for f in fund_profiles:
@@ -382,6 +436,8 @@ def load_source_documents(
             )
         )
     stats_dict = stats.to_dict()
+    stats_dict["source_required_tags"] = required_tags
+    stats_dict["source_category_quotas"] = category_quotas
     stats_dict["google_news_docs"] = len(news_docs) + len(global_news_docs)
     stats_dict["market_variable_docs"] = len(market_docs)
     stats_dict["satellite_proxy_docs"] = len(satellite_proxy_docs)
@@ -546,6 +602,86 @@ def _stale_penalty_config() -> Dict[str, float]:
 def _evidence_mode_weight_config() -> Dict[str, float]:
     cfg = _scoring_config()
     return cfg.get("evidence_mode_weight", {"direct": 1.0, "proxy": 0.78})
+
+
+def _feedback_horizon_from_bucket(freshness_bucket_name: str) -> str:
+    fb = (freshness_bucket_name or "").strip()
+    if fb == "within_3d":
+        return "3d"
+    if fb in {"within_7d", "within_14d"}:
+        return "2w"
+    return "3m"
+
+
+def _source_feedback_prior_multiplier(source_tier: str = "", source_category: str = "", source_name: str = "") -> float:
+    cfg = _scoring_config().get("source_feedback", {})
+    by_name = cfg.get("prior_multiplier_by_source_name", {})
+    if isinstance(by_name, dict) and source_name in by_name:
+        return float(by_name.get(source_name, 1.0))
+    by_tier = cfg.get("prior_multiplier_by_source_tier", {})
+    if isinstance(by_tier, dict) and source_tier in by_tier:
+        return float(by_tier.get(source_tier, 1.0))
+    by_cat = cfg.get("prior_multiplier_by_source_category", {})
+    if isinstance(by_cat, dict) and source_category in by_cat:
+        return float(by_cat.get(source_category, 1.0))
+    return float(cfg.get("prior_multiplier_default", 1.0))
+
+
+def _blend_prior_posterior(prior: float, posterior: float) -> float:
+    cfg = _scoring_config().get("source_feedback", {})
+    w = float(cfg.get("posterior_blend_weight", 0.65))
+    w = max(0.0, min(1.0, w))
+    return prior * (1.0 - w) + posterior * w
+
+
+def _source_feedback_multiplier(
+    source_name: str,
+    fund_type: str = "",
+    feedback_horizon: str = "",
+    source_tier: str = "",
+    source_category: str = "",
+) -> float:
+    """Runtime multiplier from realized source-performance feedback."""
+    cfg = _scoring_config().get("source_feedback", {})
+    if not bool(cfg.get("enabled", False)):
+        return 1.0
+    prior = _source_feedback_prior_multiplier(source_tier=source_tier, source_category=source_category, source_name=source_name)
+    prior_only = bool(cfg.get("use_prior_only", False))
+    if prior_only:
+        lo = float(cfg.get("min_multiplier", 0.85))
+        hi = float(cfg.get("max_multiplier", 1.15))
+        return max(lo, min(hi, prior))
+    by_ft_hz = cfg.get("source_multiplier_by_fund_type_horizon", {})
+    if isinstance(by_ft_hz, dict):
+        ft_map = by_ft_hz.get(str(fund_type), {})
+        if isinstance(ft_map, dict):
+            hz_map = ft_map.get(str(feedback_horizon), {})
+            if isinstance(hz_map, dict) and source_name in hz_map:
+                raw = _blend_prior_posterior(prior, float(hz_map.get(source_name, 1.0)))
+                lo = float(cfg.get("min_multiplier", 0.85))
+                hi = float(cfg.get("max_multiplier", 1.15))
+                return max(lo, min(hi, raw))
+    by_ft = cfg.get("source_multiplier_by_fund_type", {})
+    mapping = {}
+    if isinstance(by_ft, dict):
+        ft_map = by_ft.get(str(fund_type), {})
+        if isinstance(ft_map, dict):
+            mapping = ft_map
+    if not mapping:
+        by_hz = cfg.get("source_multiplier_by_horizon", {})
+        if isinstance(by_hz, dict):
+            hz_map = by_hz.get(str(feedback_horizon), {})
+            if isinstance(hz_map, dict):
+                mapping = hz_map
+    if not mapping:
+        fallback = cfg.get("source_multiplier_by_name", {})
+        if isinstance(fallback, dict):
+            mapping = fallback
+    posterior = float(mapping.get(source_name, 1.0)) if isinstance(mapping, dict) else 1.0
+    raw = _blend_prior_posterior(prior, posterior)
+    lo = float(cfg.get("min_multiplier", 0.85))
+    hi = float(cfg.get("max_multiplier", 1.15))
+    return max(lo, min(hi, raw))
 
 
 def _proxy_controls_for_fund(fund_type: str, fund_code: str = "") -> Dict[str, float]:
@@ -835,6 +971,15 @@ def map_events_to_funds(events: Sequence[ExtractedEvent], fund_codes: Sequence[s
             evidence_type, evidence_note = _variable_evidence_meta(ev.title, ev.source, ev.source_type)
             if evidence_type == "proxy":
                 adjusted_score *= float(evidence_mode_weight.get("proxy", 0.78))
+            if ev.source_tier in {"A", "B"}:
+                feedback_horizon = _feedback_horizon_from_bucket(ev.freshness_bucket)
+                adjusted_score *= _source_feedback_multiplier(
+                    ev.source,
+                    fund_type=fund_type,
+                    feedback_horizon=feedback_horizon,
+                    source_tier=ev.source_tier,
+                    source_category=ev.source_category,
+                )
             if include_in_main and abs(adjusted_score) < min_main_score:
                 include_in_main = False
                 evidence_class = "auxiliary_evidence"
@@ -852,6 +997,7 @@ def map_events_to_funds(events: Sequence[ExtractedEvent], fund_codes: Sequence[s
                     event_title=ev.title,
                     source=ev.source,
                     source_type=ev.source_type,
+                    source_category=ev.source_category,
                     source_tier=ev.source_tier,
                     evidence_tier=ev.evidence_tier,
                     published_at=ev.published_at,
@@ -1004,15 +1150,29 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
             and not x.date_uncertain
         ]
 
-        net_2w = sum(x.score for x in fresh_2w)
-        net_3d = sum(x.score for x in fresh_3d) * float(
+        # Clamp individual signals to [-0.25, 0.25] to prevent single-event domination
+        def _clamp(s: float) -> float:
+            return max(-0.25, min(0.25, s))
+
+        net_2w = sum(_clamp(x.score) for x in fresh_2w)
+        net_3d = sum(_clamp(x.score) for x in fresh_3d) * float(
             _scoring_config().get("horizon_adjustments", {}).get("3d", {}).get("freshness_multiplier", 1.2)
         )
         net_3m = (
-            sum(x.score for x in fresh_3m)
+            sum(_clamp(x.score) for x in fresh_3m)
             * float(_scoring_config().get("horizon_adjustments", {}).get("3m", {}).get("freshness_multiplier", 0.8))
-            + 0.35 * sum(x.score for x in background_ab)
+            + 0.35 * sum(_clamp(x.score) for x in background_ab)
         )
+
+        # Momentum bonus: consistent direction in last 7 days amplifies net_2w by 15%
+        fresh_7d = [x for x in fresh_main if (age_days(x.event_date or x.published_at) is not None and age_days(x.event_date or x.published_at) <= 7)]
+        if len(fresh_7d) >= 2:
+            pos_7d = sum(1 for x in fresh_7d if x.score > 0)
+            neg_7d = sum(1 for x in fresh_7d if x.score < 0)
+            if pos_7d >= 2 and neg_7d == 0 and net_2w > 0:
+                net_2w *= 1.15
+            elif neg_7d >= 2 and pos_7d == 0 and net_2w < 0:
+                net_2w *= 1.15
 
         direction_2w = score_to_label(net_2w)
         direction_3d = score_to_label(net_3d)
@@ -1070,7 +1230,12 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
         if any(x.date_uncertain for x in fresh_2w):
             warnings.append("部分事件日期不确定，已降级处理")
 
-        confidence = round(min(0.9, 0.3 + 0.09 * len(fresh_2w) + abs(net_2w) * 0.5), 4)
+        # Confidence: A/B source share is the primary driver, then fresh signal count and net score magnitude
+        ab_share = sum(1 for x in fresh_2w if x.evidence_tier in {"A", "B"}) / max(1, len(fresh_2w))
+        confidence = round(
+            min(0.9, 0.25 + 0.35 * ab_share + 0.25 * min(1.0, len(fresh_2w) / 4.0) + 0.15 * min(1.0, abs(net_2w) / 0.2)),
+            4,
+        )
         conclusion_strength = _conclusion_strength(confidence, len(fresh_2w))
         proxy_downgraded = False
         if (

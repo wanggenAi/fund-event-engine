@@ -113,6 +113,108 @@ def _source_tier_from_category(category: str) -> str:
     return "D"
 
 
+def _is_query_source(source: Dict[str, Any]) -> bool:
+    hint = str(source.get("parser_hint", "")).lower()
+    return bool(source.get("search_query")) or hint in {"google_news_query", "query_seed"}
+
+
+def _source_priority(source: Dict[str, Any]) -> int:
+    """Prioritize sources by category/reliability/freshness when capped by max_sources."""
+    cat = str(source.get("category", "specialist_research"))
+    fresh = str(source.get("freshness_priority", "low"))
+    rel = str(source.get("reliability", "community"))
+    cat_score = {
+        "authoritative_data": 50,
+        "top_tier_media": 40,
+        "specialist_research": 25,
+        "sentiment_sources": 15,
+    }
+    fresh_score = {"high": 12, "medium": 8, "low": 4}
+    rel_score = {
+        "official": 10,
+        "exchange": 10,
+        "mainstream_media": 8,
+        "industry_media": 7,
+        "specialist": 5,
+        "community": 2,
+    }
+    score = cat_score.get(cat, 10) + fresh_score.get(fresh, 3) + rel_score.get(rel, 1)
+    if _is_query_source(source):
+        score += 4
+    return score
+
+
+def _source_tags(source: Dict[str, Any]) -> List[str]:
+    tags = source.get("tags", [])
+    if not isinstance(tags, list):
+        return []
+    return [str(x).strip().lower() for x in tags if str(x).strip()]
+
+
+def _select_sources(
+    sources: List[Dict[str, Any]],
+    max_sources: int,
+    category_quotas: Dict[str, int] | None = None,
+    required_tags: List[str] | None = None,
+) -> List[Dict[str, Any]]:
+    """Select enabled sources with quality priority + optional mix constraints."""
+    if max_sources <= 0:
+        return []
+    ranked = sorted(sources, key=_source_priority, reverse=True)
+    if not category_quotas and not required_tags:
+        return ranked[:max_sources]
+
+    picked: List[Dict[str, Any]] = []
+    used = set()
+    need_tags = [t.strip().lower() for t in (required_tags or []) if t and str(t).strip()]
+
+    # 1) Ensure thematic coverage by required tags.
+    for tag in need_tags:
+        for idx, src in enumerate(ranked):
+            if idx in used:
+                continue
+            if tag in _source_tags(src):
+                picked.append(src)
+                used.add(idx)
+                break
+        if len(picked) >= max_sources:
+            return picked[:max_sources]
+
+    # 2) Fill category minimum quotas.
+    quotas = {str(k): int(v) for k, v in (category_quotas or {}).items() if int(v) > 0}
+    if quotas:
+        cat_count: Dict[str, int] = {}
+        for p in picked:
+            cat = str(p.get("category", "specialist_research"))
+            cat_count[cat] = cat_count.get(cat, 0) + 1
+        for cat, q in quotas.items():
+            while cat_count.get(cat, 0) < q and len(picked) < max_sources:
+                added = False
+                for idx, src in enumerate(ranked):
+                    if idx in used:
+                        continue
+                    if str(src.get("category", "")) != cat:
+                        continue
+                    picked.append(src)
+                    used.add(idx)
+                    cat_count[cat] = cat_count.get(cat, 0) + 1
+                    added = True
+                    break
+                if not added:
+                    break
+
+    # 3) Fill remaining slots by overall priority.
+    if len(picked) < max_sources:
+        for idx, src in enumerate(ranked):
+            if idx in used:
+                continue
+            picked.append(src)
+            used.add(idx)
+            if len(picked) >= max_sources:
+                break
+    return picked[:max_sources]
+
+
 def _collect_rss(
     source: Dict[str, Any],
     max_items: int,
@@ -238,20 +340,37 @@ def collect_documents_from_sources(
     timeout: float = 10.0,
     strict: bool = False,
     verbose: bool = False,
+    category_quotas: Dict[str, int] | None = None,
+    required_tags: List[str] | None = None,
 ) -> Tuple[List[CollectedDocument], CollectStats]:
     """Collect docs from enabled free/public sources with graceful fallback."""
     cfg = load_yaml(ROOT / "configs" / "sources.yaml")
     sources = [s for s in cfg.get("sources", []) if s.get("enabled", False)]
     stats = CollectStats(sources_total=len(sources))
     out: List[CollectedDocument] = []
+    selected_sources = _select_sources(
+        sources,
+        max_sources=max_sources,
+        category_quotas=category_quotas,
+        required_tags=required_tags,
+    )
 
-    for source in sources[:max_sources]:
+    for source in selected_sources:
         stats.sources_attempted += 1
         source_name = source.get("name", "source")
         if verbose:
             print(f"[collect] source start: {source_name}")
         try:
-            if source.get("source_type") == "rss":
+            if _is_query_source(source):
+                docs = _collect_query_source(
+                    source,
+                    max_items=max_items_per_source,
+                    timeout=timeout,
+                    strict=strict,
+                    verbose=verbose,
+                    stats=stats,
+                )
+            elif source.get("source_type") == "rss":
                 docs = _collect_rss(source, max_items=max_items_per_source, timeout=timeout, strict=strict, verbose=verbose, stats=stats)
             else:
                 docs = _collect_html_source(
@@ -280,7 +399,7 @@ def collect_documents_from_sources(
                     content="",
                     source=source_name,
                     source_type=source.get("source_type", "other"),
-                    source_tier="C",
+                    source_tier=_source_tier_from_category(str(source.get("category", "specialist_research"))),
                     category=source.get("category", "specialist_research"),
                     published_at=_now_iso(),
                 )
@@ -297,6 +416,11 @@ def collect_google_news_documents(
     gl: str = "CN",
     ceid: str = "CN:zh-Hans",
     verbose: bool = False,
+    source_name: str = "Google News RSS",
+    source_type: str = "media",
+    source_tier: str = "B",
+    category: str = "top_tier_media",
+    strict: bool = False,
 ) -> List[CollectedDocument]:
     """Collect recent public news via Google News RSS queries (free source)."""
     docs: List[CollectedDocument] = []
@@ -320,16 +444,80 @@ def collect_google_news_documents(
                         title=title or f"news:{query}",
                         url=link or rss_url,
                         content=desc[:3000],
-                        source="Google News RSS",
-                        source_type="media",
-                        source_tier="B",
-                        category="top_tier_media",
+                        source=source_name,
+                        source_type=source_type,
+                        source_tier=source_tier,
+                        category=category,
                         published_at=published_at,
                     )
                 )
         except Exception as exc:
             if verbose:
                 print(f"[collect] google news fail: {query} ({exc})")
+            if strict:
+                raise
+    return docs
+
+
+def _build_source_queries(source: Dict[str, Any]) -> List[str]:
+    """Build bounded query list from source metadata."""
+    out: List[str] = []
+    q = source.get("search_query")
+    if isinstance(q, str) and q.strip():
+        out.append(q.strip())
+    elif isinstance(q, list):
+        out.extend([str(x).strip() for x in q if str(x).strip()])
+    if not out:
+        tags = source.get("tags", [])
+        if isinstance(tags, list) and tags:
+            out.append(" ".join([str(x) for x in tags[:4] if str(x).strip()]))
+    if not out:
+        return []
+    domain = parse.urlparse(str(source.get("url", ""))).netloc.replace("www.", "")
+    max_age = int(source.get("max_age_days", 7) or 7)
+    max_age = min(30, max(3, max_age))
+    enriched: List[str] = []
+    for qx in out:
+        query = qx
+        if domain and "site:" not in query:
+            query = f"{query} site:{domain}".strip()
+        if "when:" not in query:
+            query = f"{query} when:{max_age}d".strip()
+        enriched.append(query)
+    return list(dict.fromkeys(enriched))
+
+
+def _collect_query_source(
+    source: Dict[str, Any],
+    max_items: int,
+    timeout: float,
+    strict: bool,
+    verbose: bool,
+    stats: CollectStats,
+) -> List[CollectedDocument]:
+    """Collect query-based source via Google News RSS while preserving source metadata."""
+    queries = _build_source_queries(source)[:3]
+    if not queries:
+        return []
+    stats.pages_attempted += len(queries)
+    docs = collect_google_news_documents(
+        queries=queries,
+        max_items_per_query=max(1, max_items),
+        timeout=timeout,
+        hl=str(source.get("hl", "zh-CN")),
+        gl=str(source.get("gl", "CN")),
+        ceid=str(source.get("ceid", "CN:zh-Hans")),
+        verbose=verbose,
+        source_name=str(source.get("name", "query_source")),
+        source_type=str(source.get("source_type", "search_seed")),
+        source_tier=_source_tier_from_category(str(source.get("category", "specialist_research"))),
+        category=str(source.get("category", "specialist_research")),
+        strict=strict,
+    )
+    if docs:
+        stats.pages_succeeded += len(queries)
+    else:
+        stats.pages_failed += len(queries)
     return docs
 
 

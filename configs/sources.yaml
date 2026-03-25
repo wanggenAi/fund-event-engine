@@ -290,3 +290,148 @@ sources:
     max_age_days: 3
     parser_hint: "forum"
     remarks: "仅情绪补充"
+
+  - name: "上海有色网 稀土栏目（查询）"
+    url: "https://news.smm.cn/"
+    enabled: true
+    category: "top_tier_media"
+    source_type: "industry_media"
+    reliability: "industry_media"
+    frequency: "daily"
+    tags: ["稀土", "镨钕", "氧化物", "价格"]
+    freshness_priority: "medium"
+    requires_date_extraction: true
+    max_age_days: 14
+    parser_hint: "google_news_query"
+    search_query:
+      - "稀土 镨钕 氧化镨钕 价格 site:news.smm.cn"
+      - "稀土 永磁 供需 价格 site:news.smm.cn"
+    remarks: "稀土价格与供需高质量行业媒体补充，可进主结论"
+
+  - name: "Fastmarkets Rare Earths（查询）"
+    url: "https://www.fastmarkets.com/"
+    enabled: true
+    category: "top_tier_media"
+    source_type: "industry_media"
+    reliability: "industry_media"
+    frequency: "daily"
+    tags: ["rare earth", "price", "supply", "demand"]
+    freshness_priority: "medium"
+    requires_date_extraction: true
+    max_age_days: 14
+    parser_hint: "google_news_query"
+    search_query:
+      - "rare earth price supply demand site:fastmarkets.com"
+    remarks: "国际稀土价格与供需框架补充，可进主结论"
+
+  - name: "中国稀土行业协会（查询）"
+    url: "http://www.acn.org.cn/"
+    enabled: true
+    category: "authoritative_data"
+    source_type: "official_site"
+    reliability: "official"
+    frequency: "weekly"
+    tags: ["稀土", "协会", "行业运行"]
+    freshness_priority: "high"
+    requires_date_extraction: true
+    max_age_days: 30
+    parser_hint: "google_news_query"
+    search_query:
+      - "中国稀土行业协会 运行 价格 指数 site:acn.org.cn"
+    remarks: "协会公开数据与口径，偏A层"
+
+  - name: "36氪商业航天（查询）"
+    url: "https://36kr.com/"
+    enabled: true
+    category: "specialist_research"
+    source_type: "specialist_blog"
+    reliability: "specialist"
+    frequency: "daily"
+    tags: ["商业航天", "卫星", "订单", "融资"]
+    freshness_priority: "low"
+    requires_date_extraction: true
+    max_age_days: 14
+    parser_hint: "google_news_query"
+    search_query:
+      - "商业航天 卫星 订单 发射 site:36kr.com"
+    remarks: "仅辅助解释，不能单独定方向"
+
+  - name: "星球研究/航天博客聚合（查询）"
+    url: "https://substack.com/"
+    enabled: true
+    category: "specialist_research"
+    source_type: "specialist_blog"
+    reliability: "specialist"
+    frequency: "weekly"
+    tags: ["satellite", "space economy", "analysis"]
+    freshness_priority: "low"
+    requires_date_extraction: true
+    max_age_days: 14
+    parser_hint: "google_news_query"
+    search_query:
+      - "commercial satellite constellation analysis substack"
+    remarks: "海外专题研究辅助"
+
+  - name: "Kitco Gold Analysis（查询）"
+    url: "https://www.kitco.com/"
+    enabled: true
+    category: "top_tier_media"
+    source_type: "industry_media"
+    reliability: "industry_media"
+    frequency: "daily"
+    tags: ["gold", "ETF flows", "real yield", "dollar index"]
+    freshness_priority: "medium"
+    requires_date_extraction: true
+    max_age_days: 14
+    parser_hint: "google_news_query"
+    search_query:
+      - "gold ETF flows real yields dollar index site:kitco.com"
+    remarks: "黄金核心变量补充，可进主结论"
+
+  - name: "X/Twitter 黄金宏观观点（查询）"
+    url: "https://x.com/"
+    enabled: true
+    category: "sentiment_sources"
+    source_type: "self_media"
+    reliability: "community"
+    frequency: "hourly"
+    tags: ["gold", "macro", "sentiment"]
+    freshness_priority: "low"
+    requires_date_extraction: true
+    max_age_days: 3
+    parser_hint: "google_news_query"
+    search_query:
+      - "gold real yields fed expectations twitter"
+    remarks: "仅情绪观察，不能单独支撑结论"
+
+  - name: "雪球 稀土讨论（查询）"
+    url: "https://xueqiu.com/"
+    enabled: true
+    category: "sentiment_sources"
+    source_type: "community_forum"
+    reliability: "community"
+    frequency: "hourly"
+    tags: ["稀土", "讨论", "情绪"]
+    freshness_priority: "low"
+    requires_date_extraction: true
+    max_age_days: 3
+    parser_hint: "google_news_query"
+    search_query:
+      - "稀土 永磁 雪球 讨论"
+    remarks: "仅情绪观察"
+
+  - name: "Reddit Gold（查询）"
+    url: "https://www.reddit.com/r/Gold/"
+    enabled: true
+    category: "sentiment_sources"
+    source_type: "community_forum"
+    reliability: "community"
+    frequency: "hourly"
+    tags: ["gold", "sentiment", "positioning"]
+    freshness_priority: "low"
+    requires_date_extraction: true
+    max_age_days: 3
+    parser_hint: "google_news_query"
+    search_query:
+      - "reddit gold fed real yield discussion"
+    remarks: "仅情绪补充"

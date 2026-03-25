@@ -92,6 +92,7 @@ class FundSignal:
     event_title: str
     source: str
     source_type: str
+    source_category: str
     source_tier: str
     evidence_tier: str
     published_at: str

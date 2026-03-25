@@ -3,9 +3,9 @@
 基金事件驱动判断引擎（研究辅助版，openclaw 友好）。
 
 ## 项目定位
-- 目标是做“事件 -> 核心变量 -> 基金”的方向判断，不做净值/股价点位预测。
-- 输出必须可追溯到事件与证据链。
-- 证据不足时默认中性/待观察，不为结论而结论。
+- 目标：做“事件 -> 核心变量 -> 基金”的方向判断，不做净值/股价点位预测。
+- 输出：必须可追溯到事件、证据链、反证与观察点。
+- 策略：证据不足时默认中性/待观察，不为结论而结论。
 
 ## 覆盖基金
 - `025832` 天弘中证电网设备主题指数发起A
@@ -24,10 +24,12 @@
 - C层 `specialist_research`：博客/专题（仅辅助）
 - D层 `sentiment_sources`：论坛/社区/社媒（仅情绪补充）
 
+`configs/sources.yaml` 支持 `parser_hint: google_news_query` + `search_query`，可把博客/论坛/KOL 以“可控查询”接入，且保留 C/D 不进入主结论的硬约束。
+
 ## Freshness Gating（硬门槛）
 支持 `3d/7d/14d/30d` 窗口，默认近期优先。
 
-事件层保留字段：
+事件层关键字段：
 - `published_at`
 - `event_date`
 - `collected_at`
@@ -68,13 +70,17 @@ python3 -m src.pipeline.run \
   --verbose-collect
 ```
 
+说明：
+- 每次运行会写入预测快照到 `outputs/history/fund_prediction_history.json`。
+- 默认会读取 `outputs/history/source_performance.json` 做来源后验微调，可用 `--no-source-feedback` 关闭。
+
 仅跑指定基金：
 ```bash
 python3 -m src.pipeline.run \
   --window-days 7 \
   --collect-sources \
   --no-include-examples \
-  --fund 025832 --fund 011035 --fund 024194
+  --fund 011035
 ```
 
 ## 避免旧文件混淆（时间戳输出）
@@ -92,36 +98,42 @@ python3 -m src.pipeline.run \
   --markdown-out reports/pipeline_report_${TS}.md
 ```
 
-## openclaw 一键执行与 Telegram 推送
-下面这段可以直接给 openclaw 执行。
+## 真实后验评估（关键）
+当累计了多次正式运行后，可评估“预测方向 vs 后续净值方向”。
 
-前置环境变量：
-- `TG_BOT_TOKEN`：Telegram Bot Token
-- `TG_CHAT_ID`：你的 chat id（个人或群）
-
-也可以直接用仓库脚本（推荐）：
 ```bash
-TG_BOT_TOKEN=xxxx TG_CHAT_ID=xxxx \
-bash scripts/run_and_push_telegram.sh
+python3 -m src.pipeline.evaluate \
+  --prediction-history outputs/history/fund_prediction_history.json \
+  --eval-out outputs/prediction_evaluation.json \
+  --md-out reports/prediction_evaluation.md \
+  --source-performance-out outputs/history/source_performance.json \
+  --source-feedback-half-life-days 45 \
+  --source-feedback-dynamic-min-samples \
+  --source-feedback-uncertainty-shrinkage \
+  --source-feedback-shrinkage-strength 6.0
 ```
 
-指定基金示例：
-```bash
-TG_BOT_TOKEN=xxxx TG_CHAT_ID=xxxx \
-FUNDS="025832 011035 024194" \
-bash scripts/run_and_push_telegram.sh
-```
+输出：
+- `outputs/prediction_evaluation.json`：结构化命中结果（3d/2w/3m）
+- `reports/prediction_evaluation.md`：可读评估摘要
+- `outputs/history/source_performance.json`：来源后验表现与推荐 multiplier
 
+`source_performance.json` 已包含：
+- 全局、按基金类型、按窗口（3d/2w/3m）、按基金类型+窗口 的反馈
+- 时间衰减、动态样本门槛、不确定性收缩
+- 来源先验基准 + 后验 multiplier 融合（默认后验权重 0.65）
+
+## How To Use With openclaw
+推荐让 openclaw 走两步流水线：
+
+1. 跑主流程（抓取 + 判断 + 报告）  
+2. 跑后验评估（更新来源反馈）  
+
+示例（给 openclaw 直接执行）：
 ```bash
 set -euo pipefail
 
 TS=$(date +%Y%m%d_%H%M%S)
-EVENTS="data/events/pipeline_events_${TS}.json"
-SIGNALS="data/snapshots/pipeline_signals_${TS}.json"
-REPORTS="data/snapshots/pipeline_reports_${TS}.json"
-AGG="outputs/pipeline_aggregate_${TS}.json"
-MAPPED="outputs/pipeline_mapped_events_${TS}.json"
-MD="reports/pipeline_report_${TS}.md"
 
 python3 -m src.pipeline.run \
   --window-days 7 \
@@ -130,24 +142,37 @@ python3 -m src.pipeline.run \
   --max-sources 20 \
   --max-items-per-source 3 \
   --collect-timeout 12 \
-  --events-out "${EVENTS}" \
-  --signals-out "${SIGNALS}" \
-  --reports-out "${REPORTS}" \
-  --aggregate-out "${AGG}" \
-  --mapped-events-out "${MAPPED}" \
-  --markdown-out "${MD}"
+  --events-out data/events/pipeline_events_${TS}.json \
+  --signals-out data/snapshots/pipeline_signals_${TS}.json \
+  --reports-out data/snapshots/pipeline_reports_${TS}.json \
+  --aggregate-out outputs/pipeline_aggregate_${TS}.json \
+  --mapped-events-out outputs/pipeline_mapped_events_${TS}.json \
+  --markdown-out reports/pipeline_report_${TS}.md
 
-# 1) 发送 Markdown 报告
-curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" \
-  -F chat_id="${TG_CHAT_ID}" \
-  -F document=@"${MD}" \
-  -F caption="fund-event-engine 报告 ${TS}"
+python3 -m src.pipeline.evaluate \
+  --prediction-history outputs/history/fund_prediction_history.json \
+  --eval-out outputs/prediction_evaluation_${TS}.json \
+  --md-out reports/prediction_evaluation_${TS}.md \
+  --source-performance-out outputs/history/source_performance.json
+```
 
-# 2) 发送聚合 JSON（便于自动化读取）
-curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" \
-  -F chat_id="${TG_CHAT_ID}" \
-  -F document=@"${AGG}" \
-  -F caption="pipeline_aggregate ${TS}"
+openclaw 消费建议：
+- 报告主读：`reports/pipeline_report_${TS}.md`
+- 结构化主读：`outputs/pipeline_aggregate_${TS}.json` 与 `outputs/pipeline_mapped_events_${TS}.json`
+- 反馈学习：`outputs/history/source_performance.json`
+
+## Telegram 一键推送
+前置环境变量：
+- `TG_BOT_TOKEN`
+- `TG_CHAT_ID`
+
+```bash
+TG_BOT_TOKEN=xxxx TG_CHAT_ID=xxxx bash scripts/run_and_push_telegram.sh
+```
+
+指定基金示例：
+```bash
+TG_BOT_TOKEN=xxxx TG_CHAT_ID=xxxx FUNDS="011035 002963" bash scripts/run_and_push_telegram.sh
 ```
 
 ## 运行时动态调参（不改仓库配置）
@@ -160,11 +185,9 @@ python3 -m src.pipeline.run \
   --scoring-override-json '{"proxy_controls_by_fund_code":{"002963":{"max_proxy_share_in_main":0.9,"auto_downgrade_strength_when_proxy_dominant":false}}}'
 ```
 
-也支持文件覆盖：
+或：
 ```bash
-python3 -m src.pipeline.run \
-  --window-days 7 \
-  --scoring-override-file configs/scoring_override.json
+python3 -m src.pipeline.run --window-days 7 --scoring-override-file configs/scoring_override.json
 ```
 
 ## 输出文件与稳定契约
@@ -181,25 +204,8 @@ openclaw 重点字段：
 - 报告层：`direction_3d`, `direction_2w`, `direction_3m`, `long_term_logic`, `conclusion_strength`, `warnings`, `proxy_event_share_main`
 - 报告层（自动质量）：`source_stability_score`, `historical_consistency_score`, `reference_value_score`, `quality_flags`
 - 聚合层补充：`runtime_scoring_override_applied`, `runtime_scoring_override_keys`, `quality_meta`
-
-## 评分与 proxy 控制（`configs/scoring.yaml`）
-- `evidence_mode_weight`：`direct/proxy` 分数权重
-- `proxy_controls`：全局 proxy 置信度与占比阈值
-- `proxy_controls_by_fund_type`：按基金类型覆盖
-- `proxy_controls_by_fund_code`：按基金代码覆盖（优先级最高）
-
-## 自动质量评分
-每次正式运行后自动计算并写入报告：
-- 源稳定性分 `source_stability_score`
-- 历史一致性分 `historical_consistency_score`
-- 参考价值分 `reference_value_score`
-- 质量标记 `quality_flags`
-
-历史文件默认：
-- `outputs/history/fund_report_history.json`
-
-可通过参数覆盖：
-- `--history-path outputs/history/your_history.json`
+- 聚合层来源结构：`source_mix_meta.total_by_tier`, `source_mix_meta.main_by_category`, `source_mix_meta.top_main_sources`
+- 来源后验字段：`source_feedback_enabled`, `source_feedback_multiplier_count`, `source_feedback_fund_type_bucket_count`, `source_feedback_horizon_bucket_count`, `source_feedback_fund_type_horizon_bucket_count`, `source_feedback_file`
 
 ## 最小测试
 ```bash

@@ -29,6 +29,9 @@ POSITIVE_HINTS = [
     "高增",
     "可期",
     "流入",
+    "上涨",
+    "涨价",
+    "走高",
 ]
 NEGATIVE_HINTS = [
     "下调",
@@ -97,12 +100,27 @@ ACTION_HINTS = [
 ]
 SUBJECT_HINT = r"(国家|中国|央行|工信部|能源局|发改委|交易所|公司|集团|基金|统计局|美联储|财政部|协会)"
 
+_NEGATIONS = ["不会", "无法", "难以", "并非", "没有", "未能", "不"]
+
+
+def _negate_check(text: str, keyword: str) -> bool:
+    """Return True if keyword is immediately preceded (within 5 chars) by a negation."""
+    idx = text.find(keyword)
+    while idx != -1:
+        prefix = text[max(0, idx - 5):idx]
+        if any(neg in prefix for neg in _NEGATIONS):
+            return True
+        idx = text.find(keyword, idx + 1)
+    return False
+
 
 def _direction_hint(text: str) -> str:
-    if any(k in text for k in POSITIVE_HINTS):
-        return "利好"
-    if any(k in text for k in NEGATIVE_HINTS):
-        return "利空"
+    for k in POSITIVE_HINTS:
+        if k in text:
+            return "利空" if _negate_check(text, k) else "利好"
+    for k in NEGATIVE_HINTS:
+        if k in text:
+            return "利好" if _negate_check(text, k) else "利空"
     return "中性"
 
 
