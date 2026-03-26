@@ -13,6 +13,7 @@ from src.collectors.source_collector import (
     collect_bond_direct_signal_documents,
     collect_central_bank_gold_signal_documents,
     collect_power_grid_direct_signal_documents,
+    collect_rare_earth_direct_signal_documents,
     collect_satellite_direct_signal_documents,
     collect_documents_from_sources,
     collect_gold_direct_signal_documents,
@@ -421,6 +422,8 @@ def load_source_documents(
     collected.extend(bond_china_direct_docs)
     power_grid_direct_docs = collect_power_grid_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(power_grid_direct_docs)
+    rare_earth_direct_docs = collect_rare_earth_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
+    collected.extend(rare_earth_direct_docs)
     satellite_direct_docs = collect_satellite_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(satellite_direct_docs)
     structured_theme_docs = collect_structured_theme_signal_documents(timeout=timeout, verbose=verbose_collect)
@@ -461,6 +464,7 @@ def load_source_documents(
     stats_dict["bond_direct_docs"] = len(bond_direct_docs)
     stats_dict["bond_china_direct_docs"] = len(bond_china_direct_docs)
     stats_dict["power_grid_direct_docs"] = len(power_grid_direct_docs)
+    stats_dict["rare_earth_direct_docs"] = len(rare_earth_direct_docs)
     stats_dict["satellite_direct_docs"] = len(satellite_direct_docs)
     stats_dict["structured_theme_docs"] = len(structured_theme_docs)
     stats_dict["thematic_signal_docs"] = len(thematic_signal_docs)
@@ -919,6 +923,9 @@ def _variable_evidence_meta(event_title: str, source: str, source_type: str) -> 
         "china bond credit signal",
         "power grid tender signal",
         "power grid policy signal",
+        "rare earth policy direct signal",
+        "rare earth price direct signal",
+        "rare earth order direct signal",
         "satellite launch signal",
         "satellite rollout signal",
         "rare earth policy signal",

@@ -587,6 +587,137 @@ def collect_central_bank_gold_signal_documents(timeout: float = 10.0, verbose: b
 
 
 
+
+
+def collect_rare_earth_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
+    """Build direct-style rare-earth signals from policy, price and order-demand public reports."""
+    docs: List[CollectedDocument] = []
+
+    policy_queries = [
+        "稀土 配额 总量控制 出口管制 工信部 when:30d",
+        "稀土 政策 指标 配额 出口 when:30d",
+        "中国稀土行业协会 稀土 政策 供给 when:30d",
+    ]
+    rows = collect_google_news_documents(
+        queries=policy_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["收紧", "总量控制", "配额", "出口管制", "偏紧", "强化"]
+        neg_words = ["放松", "放开", "宽松", "下调", "供给释放"]
+        pos = neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        latest = latest or _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(CollectedDocument(
+            title="稀土政策与供给约束趋势信号",
+            url="https://news.google.com/",
+            content=f"{latest}，稀土政策与供给约束跟踪：近30天收紧/约束信号{pos}条、放松/释放信号{neg}条，供给约束趋势{trend}。",
+            source="Rare Earth Policy Direct Signal",
+            source_type="media",
+            source_tier="B",
+            category="top_tier_media",
+            published_at=latest,
+        ))
+
+    price_queries = [
+        "氧化镨钕 价格 重稀土 价格 稀土 永磁 when:14d",
+        "稀土 价格 新高 回落 镨钕 when:14d",
+        "上海有色网 稀土 镨钕 价格 when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=price_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["新高", "上涨", "上行", "走强", "提价", "偏紧"]
+        neg_words = ["回落", "下跌", "下行", "走弱", "承压"]
+        pos = neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        latest = latest or _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(CollectedDocument(
+            title="稀土价格趋势信号",
+            url="https://news.google.com/",
+            content=f"{latest}，稀土价格跟踪：近14天价格走强信号{pos}条、走弱信号{neg}条，价格趋势{trend}。",
+            source="Rare Earth Price Direct Signal",
+            source_type="media",
+            source_tier="B",
+            category="top_tier_media",
+            published_at=latest,
+        ))
+
+    order_queries = [
+        "稀土 永磁 订单 排产 开工率 出货 when:30d",
+        "磁材 订单 稀土 永磁 新能源 风电 机器人 when:30d",
+        "稀土 永磁 下游需求 开工 出货 when:30d",
+    ]
+    rows = collect_google_news_documents(
+        queries=order_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["订单增长", "订单改善", "排产提升", "开工率提升", "出货增长", "需求回暖"]
+        neg_words = ["订单下滑", "排产下滑", "开工率回落", "出货承压", "需求走弱"]
+        pos = neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        latest = latest or _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(CollectedDocument(
+            title="稀土永磁订单与开工趋势信号",
+            url="https://news.google.com/",
+            content=f"{latest}，稀土永磁订单与开工跟踪：近30天订单/开工改善信号{pos}条、走弱信号{neg}条，订单与开工趋势{trend}。",
+            source="Rare Earth Order Direct Signal",
+            source_type="media",
+            source_tier="B",
+            category="top_tier_media",
+            published_at=latest,
+        ))
+    return docs
+
+
 def collect_power_grid_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
     """Build direct-style power-grid signals from public bidding/order/policy news."""
     docs: List[CollectedDocument] = []
