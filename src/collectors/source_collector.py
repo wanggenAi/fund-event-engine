@@ -583,6 +583,104 @@ def collect_central_bank_gold_signal_documents(timeout: float = 10.0, verbose: b
 
 
 
+
+
+def collect_bond_china_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
+    """Build China-local bond direct signals from public news around issuance/funding/credit events."""
+    docs: List[CollectedDocument] = []
+
+    issue_queries = [
+        "信用债 取消发行 净融资 票面利率 城投债 when:14d",
+        "公司债 中票 短融 取消发行 净融资 when:14d",
+        "城投债 净融资 发行 利率 认购 倍数 when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=issue_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["净融资改善", "发行回暖", "认购积极", "利率下行", "超额认购", "发行成功"]
+        neg_words = ["取消发行", "发行失败", "净融资走弱", "利率抬升", "认购不足", "取消"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "改善" if pos > neg else "承压" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="信用债发行与净融资趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，信用债发行与净融资跟踪：近14天改善信号{pos}条、承压信号{neg}条，净融资与发行环境{trend}。",
+                source="Bond Financing Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+
+    credit_queries = [
+        "城投债 债务 展期 兑付 风险 缓释 when:14d",
+        "信用债 兑付 展期 违约 增信 when:14d",
+        "地产债 债务 风险 化解 兑付 when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=credit_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["化解", "纾困", "增信", "兑付完成", "风险缓释", "支持工具"]
+        neg_words = ["违约", "展期", "逾期", "兑付承压", "风险暴露", "下调"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "改善" if pos > neg else "承压" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="中国信用债风险事件趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，中国信用债风险事件跟踪：近14天风险缓释信号{pos}条、风险暴露信号{neg}条，信用环境{trend}。",
+                source="China Bond Credit Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+    return docs
+
+
 def collect_gold_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
     """Build direct-style gold signals from public news on ETF flows and gold-specific catalysts."""
     docs: List[CollectedDocument] = []

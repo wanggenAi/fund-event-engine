@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
 from src.collectors.source_collector import (
+    collect_bond_china_direct_signal_documents,
     collect_bond_direct_signal_documents,
     collect_central_bank_gold_signal_documents,
     collect_documents_from_sources,
@@ -414,6 +415,8 @@ def load_source_documents(
     collected.extend(gold_direct_docs)
     bond_direct_docs = collect_bond_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(bond_direct_docs)
+    bond_china_direct_docs = collect_bond_china_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
+    collected.extend(bond_china_direct_docs)
     structured_theme_docs = collect_structured_theme_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(structured_theme_docs)
     thematic_signal_docs = collect_thematic_industry_signal_documents(timeout=timeout, verbose=verbose_collect)
@@ -450,6 +453,7 @@ def load_source_documents(
     stats_dict["central_bank_gold_docs"] = len(central_bank_gold_docs)
     stats_dict["gold_direct_docs"] = len(gold_direct_docs)
     stats_dict["bond_direct_docs"] = len(bond_direct_docs)
+    stats_dict["bond_china_direct_docs"] = len(bond_china_direct_docs)
     stats_dict["structured_theme_docs"] = len(structured_theme_docs)
     stats_dict["thematic_signal_docs"] = len(thematic_signal_docs)
     return rows, stats_dict
@@ -903,6 +907,8 @@ def _variable_evidence_meta(event_title: str, source: str, source_type: str) -> 
         "central bank gold signal",
         "bond credit event signal",
         "bond liquidity signal",
+        "bond financing signal",
+        "china bond credit signal",
         "rare earth policy signal",
         "rare earth price-demand signal",
         "rare earth order signal",
