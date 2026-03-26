@@ -13,6 +13,28 @@ from src.utils.cache import save_json
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _load_high_readiness_requirements() -> Dict[str, float]:
+    try:
+        from src.utils.config_loader import load_yaml
+        cfg = load_yaml(ROOT / "configs" / "scoring.yaml")
+        return cfg.get(
+            "high_readiness_requirements",
+            {
+                "min_direct_main_count": 2,
+                "min_source_diversity_main": 2,
+                "max_proxy_share_main": 0.5,
+                "min_source_stability_score": 0.75,
+            },
+        )
+    except Exception:
+        return {
+            "min_direct_main_count": 2,
+            "min_source_diversity_main": 2,
+            "max_proxy_share_main": 0.5,
+            "min_source_stability_score": 0.75,
+        }
+
+
 def compute_source_stability_score(collect_stats: Dict[str, Any]) -> float:
     """Compute 0..1 source-collection stability score from run stats."""
     src_att = int(collect_stats.get("sources_attempted", 0))
@@ -120,6 +142,20 @@ def enrich_reports_with_quality(
             flags.append("decision_readiness_low")
         if reference_score < 0.55:
             flags.append("reference_value_moderate_or_low")
+        high_req = _load_high_readiness_requirements()
+        if str(report.decision_readiness) == "高":
+            if report.direct_event_count_main < int(high_req.get("min_direct_main_count", 2)):
+                report.decision_readiness = "中"
+                flags.append("high_readiness_blocked_by_direct_count")
+            elif report.source_diversity_main < int(high_req.get("min_source_diversity_main", 2)):
+                report.decision_readiness = "中"
+                flags.append("high_readiness_blocked_by_source_diversity")
+            elif report.proxy_event_share_main > float(high_req.get("max_proxy_share_main", 0.5)):
+                report.decision_readiness = "中"
+                flags.append("high_readiness_blocked_by_proxy_share")
+            elif source_stability < float(high_req.get("min_source_stability_score", 0.75)):
+                report.decision_readiness = "中"
+                flags.append("high_readiness_blocked_by_source_stability")
         report.source_stability_score = source_stability
         report.historical_consistency_score = consistency
         report.reference_value_score = reference_score

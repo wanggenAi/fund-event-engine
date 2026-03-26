@@ -127,3 +127,10 @@ decision_controls:
   enforce_neutral_when_below_direct_min: true
   enforce_on_horizons: ["3d", "2w"]
   single_source_requires_direct_for_actionable: true
+
+
+high_readiness_requirements:
+  min_direct_main_count: 2
+  min_source_diversity_main: 2
+  max_proxy_share_main: 0.5
+  min_source_stability_score: 0.75

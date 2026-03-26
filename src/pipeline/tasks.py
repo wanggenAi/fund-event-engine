@@ -1085,6 +1085,19 @@ def _decision_controls() -> Dict[str, Any]:
     )
 
 
+def _high_readiness_requirements() -> Dict[str, float]:
+    cfg = _scoring_config()
+    return cfg.get(
+        "high_readiness_requirements",
+        {
+            "min_direct_main_count": 2,
+            "min_source_diversity_main": 2,
+            "max_proxy_share_main": 0.5,
+            "min_source_stability_score": 0.75,
+        },
+    )
+
+
 def _decision_readiness(strength: str, constraints: Sequence[str]) -> str:
     severe = {
         "single_source_main_evidence",
