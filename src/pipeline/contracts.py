@@ -146,6 +146,7 @@ class FundReport:
     key_events: List[Dict[str, Any]] = field(default_factory=list)
     downgraded_events: List[Dict[str, Any]] = field(default_factory=list)
     core_driver_check: Dict[str, str] = field(default_factory=dict)
+    driver_coverage_summary: Dict[str, Any] = field(default_factory=dict)
     counter_evidence: List[str] = field(default_factory=list)
     watch_points: List[str] = field(default_factory=list)
     one_liner: str = ""

@@ -1205,6 +1205,26 @@ def _score_to_logic(score: float, low_event_count: bool) -> str:
     return "不变"
 
 
+
+
+def _driver_coverage_summary(fund_type: str, checks: Dict[str, str]) -> Dict[str, Any]:
+    covered = sorted([k for k, v in checks.items() if v == "有覆盖"])
+    missing = sorted([k for k, v in checks.items() if v != "有覆盖"])
+    summary: Dict[str, Any] = {
+        "covered": covered,
+        "missing": missing,
+        "covered_count": len(covered),
+        "missing_count": len(missing),
+    }
+    if fund_type == "gold":
+        key_chain = ["金价", "美元", "实际利率"]
+        summary["gold_macro_chain_ready"] = all(checks.get(k) == "有覆盖" for k in key_chain)
+        summary["gold_etf_ready"] = checks.get("ETF流向") == "有覆盖"
+        summary["gold_central_bank_ready"] = checks.get("央行购金") == "有覆盖"
+        summary["gold_safe_haven_ready"] = checks.get("避险") == "有覆盖"
+    return summary
+
+
 def _watch_points_by_type(fund_type: str) -> List[str]:
     if fund_type == "thematic_equity":
         return ["关注未来7天政策/招标/订单是否新增A/B级事件", "若仅有转载与评论，维持中性/待观察"]
@@ -1443,8 +1463,22 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
         ][:8]
 
         driver_basis = (fresh_2w + auxiliary_ab) if (fresh_2w or auxiliary_ab) else background_ab
-        core_driver_check = _mark_driver_checks(str(fund.get("type", "")), driver_basis)
+        fund_type_str = str(fund.get("type", ""))
+        core_driver_check = _mark_driver_checks(fund_type_str, driver_basis)
+        driver_coverage_summary = _driver_coverage_summary(fund_type_str, core_driver_check)
 
+        if fund_type_str == "gold":
+            macro_ready = bool(driver_coverage_summary.get("gold_macro_chain_ready", False))
+            etf_ready = bool(driver_coverage_summary.get("gold_etf_ready", False))
+            cb_ready = bool(driver_coverage_summary.get("gold_central_bank_ready", False))
+            if not macro_ready:
+                warnings.append("黄金宏观定价链未完全成链，结论需谨慎")
+                if direction_2w != "中性":
+                    direction_2w = "中性"
+            if not (etf_ready or cb_ready):
+                warnings.append("黄金缺少ETF流向或央行购金的关键确认，难以支持高可用性判断")
+                if direction_3m != "中性":
+                    direction_3m = "中性"
         if conflict_in_fresh and direction_2w == "中性":
             counter_evidence = ["当前窗口内多空证据并存，净方向性不足"]
         elif net_2w >= 0:
@@ -1532,6 +1566,7 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
                 key_events=key_events,
                 downgraded_events=downgraded_events,
                 core_driver_check=core_driver_check,
+                driver_coverage_summary=driver_coverage_summary,
                 counter_evidence=counter_evidence,
                 watch_points=_watch_points_by_type(str(fund.get("type", ""))),
                 one_liner=one_liner,
@@ -1594,6 +1629,9 @@ def render_markdown(reports: Sequence[FundReport]) -> str:
         lines.extend(["", "四、核心驱动变量检查"])
         for k, v in r.core_driver_check.items():
             lines.append(f"- {k}：{v}")
+        if r.driver_coverage_summary:
+            lines.append(f"- 已覆盖核心变量数：{r.driver_coverage_summary.get('covered_count', 0)}")
+            lines.append(f"- 未覆盖核心变量数：{r.driver_coverage_summary.get('missing_count', 0)}")
 
         lines.extend(["", "五、反证"])
         for c in r.counter_evidence:
