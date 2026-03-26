@@ -116,3 +116,14 @@ source_feedback:
   source_multiplier_by_fund_type: {}
   source_multiplier_by_horizon: {}
   source_multiplier_by_fund_type_horizon: {}
+
+
+decision_controls:
+  min_direct_main_by_fund_type:
+    thematic_equity: 1
+    broad_equity: 0
+    bond: 1
+    gold: 1
+  enforce_neutral_when_below_direct_min: true
+  enforce_on_horizons: ["3d", "2w"]
+  single_source_requires_direct_for_actionable: true

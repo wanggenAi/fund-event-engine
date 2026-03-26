@@ -1039,12 +1039,26 @@ def _downgrade_conclusion_strength(strength: str, steps: int = 1) -> str:
     return order[idx]
 
 
+def _decision_controls() -> Dict[str, Any]:
+    cfg = _scoring_config()
+    return cfg.get(
+        "decision_controls",
+        {
+            "min_direct_main_by_fund_type": {"thematic_equity": 1, "broad_equity": 0, "bond": 1, "gold": 1},
+            "enforce_neutral_when_below_direct_min": True,
+            "enforce_on_horizons": ["3d", "2w"],
+            "single_source_requires_direct_for_actionable": True,
+        },
+    )
+
+
 def _decision_readiness(strength: str, constraints: Sequence[str]) -> str:
     severe = {
         "single_source_main_evidence",
         "no_direct_confirmation",
         "proxy_dominant",
         "insufficient_recent_ab_evidence",
+        "below_direct_evidence_min",
     }
     moderate = {
         "low_source_diversity",
@@ -1299,9 +1313,23 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
                 proxy_downgraded = True
                 warnings.append("代理变量占比较高，结论强度已自动下调")
 
+        decision_controls = _decision_controls()
+        min_direct_required = int(decision_controls.get("min_direct_main_by_fund_type", {}).get(str(fund.get("type", "")), 0))
+        enforce_neutral = bool(decision_controls.get("enforce_neutral_when_below_direct_min", True))
+        enforce_horizons = set(decision_controls.get("enforce_on_horizons", ["3d", "2w"]))
+        if direct_count < min_direct_required and len(fresh_2w) > 0:
+            decision_constraints.append("below_direct_evidence_min")
+            warnings.append("主结论直接证据数量不足，短中期判断按保守口径处理")
+            if enforce_neutral:
+                if "3d" in enforce_horizons:
+                    direction_3d = "中性"
+                if "2w" in enforce_horizons:
+                    direction_2w = "中性"
         if direct_count == 0 and conclusion_strength != "低":
             conclusion_strength = _downgrade_conclusion_strength(conclusion_strength, steps=1)
         if source_diversity_main <= 1 and conclusion_strength == "高":
+            conclusion_strength = _downgrade_conclusion_strength(conclusion_strength, steps=1)
+        if source_diversity_main <= 1 and direct_count < max(1, min_direct_required):
             conclusion_strength = _downgrade_conclusion_strength(conclusion_strength, steps=1)
         decision_readiness = _decision_readiness(conclusion_strength, decision_constraints)
 
@@ -1368,6 +1396,11 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
             elif fresh_neg and long_term_logic == "强化":
                 long_term_logic = "不变"
         has_actionable_chain = len(fresh_2w) >= 2 or (len(fresh_2w) == 1 and abs(net_2w) >= single_signal_min)
+        if "below_direct_evidence_min" in decision_constraints and direction_3m in {"利好", "利空"}:
+            one_liner_prefix = "短中期直接证据不足，当前更适合把方向判断视为观察结论"
+        else:
+            one_liner_prefix = ""
+
         if direction_2w == "中性" and direction_3m in {"利好", "利空"}:
             short_desc = f"近3日偏{direction_3d}" if direction_3d in {"利好", "利空"} else "短期维持中性观察"
             one_liner = (
@@ -1379,6 +1412,8 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
                 f"近7天高质量事件{'已形成可参考链条' if has_actionable_chain else '仍偏不足'}，"
                 f"{fund.get('name', code)}短期以{direction_2w}观察为主，长期逻辑{long_term_logic}。"
             )
+        if one_liner_prefix:
+            one_liner = f"{one_liner_prefix}。" + one_liner
         if proxy_share > float(proxy_controls.get("max_proxy_share_in_main", 0.6)):
             one_liner += "（提示：短期结论中代理变量占比较高）"
         if direct_count == 0:
