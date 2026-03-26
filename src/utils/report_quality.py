@@ -80,11 +80,15 @@ def _consistency_vs_recent(current: FundReport, history_rows: List[Dict[str, Any
 
 def _reference_value_score(report: FundReport, source_stability_score: float) -> float:
     direct_share = round(1.0 - float(report.proxy_event_share_main), 4)
+    source_diversity_score = min(1.0, float(report.source_diversity_main) / 3.0)
+    decision_readiness_score = {"低": 0.35, "中": 0.7, "高": 1.0}.get(str(report.decision_readiness), 0.5)
     score = (
-        0.40 * float(report.confidence)
-        + 0.30 * direct_share
-        + 0.20 * source_stability_score
-        + 0.10 * (1.0 if report.recent_event_count >= 2 else 0.5 if report.recent_event_count == 1 else 0.2)
+        0.30 * float(report.confidence)
+        + 0.25 * direct_share
+        + 0.15 * source_stability_score
+        + 0.15 * source_diversity_score
+        + 0.10 * decision_readiness_score
+        + 0.05 * (1.0 if report.recent_event_count >= 2 else 0.5 if report.recent_event_count == 1 else 0.2)
     )
     return round(max(0.0, min(1.0, score)), 4)
 
@@ -108,6 +112,12 @@ def enrich_reports_with_quality(
             flags.append("source_stability_low")
         if consistency < 0.45:
             flags.append("historical_consistency_low")
+        if report.source_diversity_main <= 1 and report.recent_event_count >= 1:
+            flags.append("single_source_dominance")
+        if report.proxy_event_share_main >= 0.8 and report.direct_event_count_main == 0:
+            flags.append("proxy_dominant_without_direct_confirmation")
+        if str(report.decision_readiness) == "低":
+            flags.append("decision_readiness_low")
         if reference_score < 0.55:
             flags.append("reference_value_moderate_or_low")
         report.source_stability_score = source_stability

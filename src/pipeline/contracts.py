@@ -131,6 +131,10 @@ class FundReport:
     low_tier_event_count_filtered: int
     proxy_event_count_main: int
     proxy_event_share_main: float
+    direct_event_count_main: int
+    source_diversity_main: int
+    decision_readiness: str
+    decision_constraints: List[str]
     signal_summary: Dict[str, Any]
     direction_3d: str
     direction_2w: str

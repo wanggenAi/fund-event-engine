@@ -1039,6 +1039,27 @@ def _downgrade_conclusion_strength(strength: str, steps: int = 1) -> str:
     return order[idx]
 
 
+def _decision_readiness(strength: str, constraints: Sequence[str]) -> str:
+    severe = {
+        "single_source_main_evidence",
+        "no_direct_confirmation",
+        "proxy_dominant",
+        "insufficient_recent_ab_evidence",
+    }
+    moderate = {
+        "low_source_diversity",
+        "limited_recent_signal_count",
+        "conflicted_fresh_signals",
+        "date_uncertain_present",
+    }
+    hits = set(constraints)
+    if strength == "低" or hits & severe:
+        return "低"
+    if strength == "中" or hits & moderate:
+        return "中"
+    return "高"
+
+
 def _driver_template(fund_type: str) -> Dict[str, str]:
     if fund_type == "thematic_equity":
         return {"政策": "证据不足", "景气": "证据不足", "价格": "证据不足", "订单": "证据不足", "供需": "证据不足"}
@@ -1195,15 +1216,19 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
                 direction_3m = "利好"
 
         warnings: List[str] = []
+        decision_constraints: List[str] = []
         proxy_controls = _proxy_controls_for_fund(str(fund.get("type", "")), str(code))
         proxy_count = 0
         proxy_share = 0.0
+        direct_count = 0
+        source_diversity_main = 0
         # Avoid over-conservative "always neutral" when there is one strong fresh A/B signal.
         single_signal_min = 0.08
         pos_count = sum(1 for x in fresh_2w if x.score > 0)
         neg_count = sum(1 for x in fresh_2w if x.score < 0)
         conflict_in_fresh = pos_count > 0 and neg_count > 0
         if len(fresh_2w) == 0:
+            decision_constraints.append("insufficient_recent_ab_evidence")
             direction_3d = "中性"
             direction_2w = "中性"
             if len(background_ab) > 0 and abs(net_3m) >= 0.06:
@@ -1217,23 +1242,48 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
                 if len(background_ab) > 0:
                     warnings.append("存在A/B级背景证据，已用于3个月逻辑复核")
         elif len(fresh_2w) == 1 and abs(net_2w) < single_signal_min:
+            decision_constraints.append("limited_recent_signal_count")
             warnings.append("有效证据仅1条且强度有限，结论以中性/待观察为主")
             direction_3d = "中性"
             direction_2w = "中性"
         elif conflict_in_fresh and direction_2w == "中性":
+            decision_constraints.append("conflicted_fresh_signals")
             warnings.append("近期高质量证据多空并存，方向性不足")
         if fresh_2w:
             proxy_count = sum(1 for x in fresh_2w if x.variable_evidence_type == "proxy")
+            direct_count = sum(1 for x in fresh_2w if x.variable_evidence_type != "proxy")
             proxy_share = proxy_count / max(1, len(fresh_2w))
+            source_diversity_main = len({x.source for x in fresh_2w})
             if proxy_share > float(proxy_controls.get("max_proxy_share_in_main", 0.6)):
+                decision_constraints.append("proxy_dominant")
                 warnings.append("短期主结论中代理变量占比较高，建议结合直接证据复核")
+            if direct_count == 0:
+                decision_constraints.append("no_direct_confirmation")
+                warnings.append("主结论缺少直接证据确认，更适合做风向参考，不宜直接拍板")
+            if source_diversity_main <= 1 and len(fresh_2w) >= 1:
+                decision_constraints.append("single_source_main_evidence")
+                warnings.append("主结论主要来自单一来源，需防止单源偏差")
+            elif source_diversity_main == 2:
+                decision_constraints.append("low_source_diversity")
+                warnings.append("主结论来源多样性一般，建议结合更多来源复核")
         if any(x.date_uncertain for x in fresh_2w):
+            decision_constraints.append("date_uncertain_present")
             warnings.append("部分事件日期不确定，已降级处理")
 
         # Confidence: A/B source share is the primary driver, then fresh signal count and net score magnitude
         ab_share = sum(1 for x in fresh_2w if x.evidence_tier in {"A", "B"}) / max(1, len(fresh_2w))
+        direct_share = (direct_count / max(1, len(fresh_2w))) if fresh_2w else 0.0
+        diversity_score = min(1.0, source_diversity_main / 3.0) if fresh_2w else 0.0
         confidence = round(
-            min(0.9, 0.25 + 0.35 * ab_share + 0.25 * min(1.0, len(fresh_2w) / 4.0) + 0.15 * min(1.0, abs(net_2w) / 0.2)),
+            min(
+                0.9,
+                0.18
+                + 0.28 * ab_share
+                + 0.18 * min(1.0, len(fresh_2w) / 4.0)
+                + 0.12 * min(1.0, abs(net_2w) / 0.2)
+                + 0.14 * direct_share
+                + 0.10 * diversity_score,
+            ),
             4,
         )
         conclusion_strength = _conclusion_strength(confidence, len(fresh_2w))
@@ -1248,6 +1298,12 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
                 conclusion_strength = downgraded_strength
                 proxy_downgraded = True
                 warnings.append("代理变量占比较高，结论强度已自动下调")
+
+        if direct_count == 0 and conclusion_strength != "低":
+            conclusion_strength = _downgrade_conclusion_strength(conclusion_strength, steps=1)
+        if source_diversity_main <= 1 and conclusion_strength == "高":
+            conclusion_strength = _downgrade_conclusion_strength(conclusion_strength, steps=1)
+        decision_readiness = _decision_readiness(conclusion_strength, decision_constraints)
 
         top_events = sorted(fresh_2w, key=lambda i: abs(i.score), reverse=True)[:3]
         key_events = [
@@ -1325,6 +1381,10 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
             )
         if proxy_share > float(proxy_controls.get("max_proxy_share_in_main", 0.6)):
             one_liner += "（提示：短期结论中代理变量占比较高）"
+        if direct_count == 0:
+            one_liner += "（缺少直接证据确认）"
+        if source_diversity_main <= 1 and len(fresh_2w) >= 1:
+            one_liner += "（主结论来源单一）"
         if proxy_downgraded:
             one_liner += "（已自动下调结论强度）"
 
@@ -1340,6 +1400,10 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
                 low_tier_event_count_filtered=len(low_tier_filtered),
                 proxy_event_count_main=proxy_count,
                 proxy_event_share_main=round(proxy_share, 4),
+                direct_event_count_main=direct_count,
+                source_diversity_main=source_diversity_main,
+                decision_readiness=decision_readiness,
+                decision_constraints=decision_constraints,
                 signal_summary={
                     "net_score_3d": round(net_3d, 6),
                     "net_score_2w": round(net_2w, 6),
@@ -1349,6 +1413,9 @@ def aggregate_reports(signals: Sequence[FundSignal], window_days: int, fund_code
                     "total_signals": len(items),
                     "proxy_main_count": proxy_count,
                     "proxy_main_share": round(proxy_share, 4),
+                    "direct_main_count": direct_count,
+                    "source_diversity_main": source_diversity_main,
+                    "decision_readiness": decision_readiness,
                 },
                 direction_3d=direction_3d,
                 direction_2w=direction_2w,
@@ -1387,6 +1454,7 @@ def render_markdown(reports: Sequence[FundReport]) -> str:
                 f"- 近3个月逻辑：{r.direction_3m}",
                 f"- 长期逻辑：{r.long_term_logic}",
                 f"- 结论强度：{r.conclusion_strength}",
+                f"- 决策可用性：{r.decision_readiness}",
                 "",
                 "二、本次真正有效的关键事件",
             ]
@@ -1415,6 +1483,8 @@ def render_markdown(reports: Sequence[FundReport]) -> str:
         lines.append(f"- 低层级证据降级数量：{r.low_tier_event_count_filtered}")
         lines.append(f"- 主结论中代理变量数量：{r.proxy_event_count_main}")
         lines.append(f"- 主结论中代理变量占比：{r.proxy_event_share_main:.2%}")
+        lines.append(f"- 主结论中直接证据数量：{r.direct_event_count_main}")
+        lines.append(f"- 主结论来源数：{r.source_diversity_main}")
 
         lines.extend(["", "四、核心驱动变量检查"])
         for k, v in r.core_driver_check.items():
