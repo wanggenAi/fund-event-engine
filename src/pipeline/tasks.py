@@ -12,6 +12,8 @@ from src.collectors.source_collector import (
     collect_bond_china_direct_signal_documents,
     collect_bond_direct_signal_documents,
     collect_central_bank_gold_signal_documents,
+    collect_power_grid_direct_signal_documents,
+    collect_satellite_direct_signal_documents,
     collect_documents_from_sources,
     collect_gold_direct_signal_documents,
     collect_google_news_documents,
@@ -417,6 +419,10 @@ def load_source_documents(
     collected.extend(bond_direct_docs)
     bond_china_direct_docs = collect_bond_china_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(bond_china_direct_docs)
+    power_grid_direct_docs = collect_power_grid_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
+    collected.extend(power_grid_direct_docs)
+    satellite_direct_docs = collect_satellite_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
+    collected.extend(satellite_direct_docs)
     structured_theme_docs = collect_structured_theme_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(structured_theme_docs)
     thematic_signal_docs = collect_thematic_industry_signal_documents(timeout=timeout, verbose=verbose_collect)
@@ -454,6 +460,8 @@ def load_source_documents(
     stats_dict["gold_direct_docs"] = len(gold_direct_docs)
     stats_dict["bond_direct_docs"] = len(bond_direct_docs)
     stats_dict["bond_china_direct_docs"] = len(bond_china_direct_docs)
+    stats_dict["power_grid_direct_docs"] = len(power_grid_direct_docs)
+    stats_dict["satellite_direct_docs"] = len(satellite_direct_docs)
     stats_dict["structured_theme_docs"] = len(structured_theme_docs)
     stats_dict["thematic_signal_docs"] = len(thematic_signal_docs)
     return rows, stats_dict
@@ -909,6 +917,10 @@ def _variable_evidence_meta(event_title: str, source: str, source_type: str) -> 
         "bond liquidity signal",
         "bond financing signal",
         "china bond credit signal",
+        "power grid tender signal",
+        "power grid policy signal",
+        "satellite launch signal",
+        "satellite rollout signal",
         "rare earth policy signal",
         "rare earth price-demand signal",
         "rare earth order signal",

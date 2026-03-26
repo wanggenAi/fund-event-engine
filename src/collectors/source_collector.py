@@ -585,6 +585,198 @@ def collect_central_bank_gold_signal_documents(timeout: float = 10.0, verbose: b
 
 
 
+
+
+def collect_power_grid_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
+    """Build direct-style power-grid signals from public bidding/order/policy news."""
+    docs: List[CollectedDocument] = []
+
+    order_queries = [
+        "国家电网 南方电网 招标 中标 设备 特高压 when:14d",
+        "电网设备 中标 订单 配网 特高压 when:14d",
+        "变压器 开关 电缆 电网 中标 订单 when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=order_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["中标", "开标", "订单", "中选", "落地", "签约", "交付"]
+        neg_words = ["延期", "取消", "流标", "推迟"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="电网招投标与订单趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，电网招投标与订单跟踪：近14天订单落地/中标信号{pos}条、延期/取消信号{neg}条，订单趋势{trend}。",
+                source="Power Grid Tender Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+
+    policy_queries = [
+        "特高压 核准 电网投资 配网改造 政策 when:14d",
+        "国家能源局 电网投资 特高压 配网 when:30d",
+    ]
+    rows = collect_google_news_documents(
+        queries=policy_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["核准", "投资", "提速", "开工", "改造", "推进", "落地"]
+        neg_words = ["放缓", "推迟", "下调", "不及预期"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="电网投资与核准推进趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，电网投资与核准推进跟踪：近14天推进/核准信号{pos}条、放缓/推迟信号{neg}条，政策推进趋势{trend}。",
+                source="Power Grid Policy Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+    return docs
+
+
+def collect_satellite_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
+    """Build direct-style satellite signals from public launch/order/policy rollout news."""
+    docs: List[CollectedDocument] = []
+
+    launch_queries = [
+        "商业航天 卫星 发射 成功 延期 组网 when:14d",
+        "卫星互联网 发射 低轨 组网 when:14d",
+        "国家航天局 卫星 发射 商业航天 when:30d",
+    ]
+    rows = collect_google_news_documents(
+        queries=launch_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["发射成功", "组网推进", "入轨", "部署", "发射"]
+        neg_words = ["延期", "推迟", "失败", "失利", "受阻"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="商用卫星发射与组网趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，商用卫星发射与组网跟踪：近14天发射成功/组网推进信号{pos}条、延期/失败信号{neg}条，发射与组网趋势{trend}。",
+                source="Satellite Launch Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+
+    policy_queries = [
+        "卫星互联网 标准委 牌照 频轨 政策 推进 when:30d",
+        "商业航天 标准 政策 牌照 卫星互联网 when:30d",
+    ]
+    rows = collect_google_news_documents(
+        queries=policy_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["成立", "推进", "批复", "标准", "牌照", "核准", "落地"]
+        neg_words = ["搁置", "推迟", "暂停", "受阻"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="商用卫星政策与标准推进趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，商用卫星政策与标准推进跟踪：近14天推进/落地信号{pos}条、受阻/推迟信号{neg}条，政策推进趋势{trend}。",
+                source="Satellite Rollout Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+    return docs
+
+
 def collect_bond_china_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
     """Build China-local bond direct signals from public news around issuance/funding/credit events."""
     docs: List[CollectedDocument] = []
