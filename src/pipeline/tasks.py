@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
 from src.collectors.source_collector import (
+    collect_bond_direct_signal_documents,
     collect_central_bank_gold_signal_documents,
     collect_documents_from_sources,
+    collect_gold_direct_signal_documents,
     collect_google_news_documents,
     collect_market_variable_documents,
     collect_satellite_price_proxy_documents,
@@ -408,6 +410,10 @@ def load_source_documents(
     collected.extend(satellite_proxy_docs)
     central_bank_gold_docs = collect_central_bank_gold_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(central_bank_gold_docs)
+    gold_direct_docs = collect_gold_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
+    collected.extend(gold_direct_docs)
+    bond_direct_docs = collect_bond_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
+    collected.extend(bond_direct_docs)
     structured_theme_docs = collect_structured_theme_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(structured_theme_docs)
     thematic_signal_docs = collect_thematic_industry_signal_documents(timeout=timeout, verbose=verbose_collect)
@@ -442,6 +448,8 @@ def load_source_documents(
     stats_dict["market_variable_docs"] = len(market_docs)
     stats_dict["satellite_proxy_docs"] = len(satellite_proxy_docs)
     stats_dict["central_bank_gold_docs"] = len(central_bank_gold_docs)
+    stats_dict["gold_direct_docs"] = len(gold_direct_docs)
+    stats_dict["bond_direct_docs"] = len(bond_direct_docs)
     stats_dict["structured_theme_docs"] = len(structured_theme_docs)
     stats_dict["thematic_signal_docs"] = len(thematic_signal_docs)
     return rows, stats_dict
@@ -889,6 +897,25 @@ def _variable_evidence_meta(event_title: str, source: str, source_type: str) -> 
     s = (source or "").lower()
     st = (source_type or "").lower()
     proxy_markers = ["代理", "proxy", "篮子", "hyg-ief", "tip", "gld", "vix"]
+    direct_signal_sources = {
+        "gold etf flow signal",
+        "gold safe haven signal",
+        "central bank gold signal",
+        "bond credit event signal",
+        "bond liquidity signal",
+        "rare earth policy signal",
+        "rare earth price-demand signal",
+        "rare earth order signal",
+        "power grid structured signal",
+        "power grid demand-supply signal",
+        "power grid price signal",
+        "satellite structured signal",
+        "satellite order-demand signal",
+        "satellite policy signal",
+        "satellite price signal",
+    }
+    if s in direct_signal_sources:
+        return ("direct", "结构化直接证据：由公开来源聚合出的核心变量信号，可直接用于主结论复核")
     if any(k in t for k in proxy_markers) or any(k in s for k in ["yahoo finance api"]) or (st == "media" and "周度变化快照" in event_title and any(k in event_title for k in ["代理", "篮子"])):
         return ("proxy", "代理变量证据：用于跟踪核心变量方向，非产业一手现货/公告数据")
     return ("direct", "直接变量证据：来自可验证事件或核心变量原始披露")

@@ -581,6 +581,196 @@ def collect_central_bank_gold_signal_documents(timeout: float = 10.0, verbose: b
     ]
 
 
+
+
+def collect_gold_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
+    """Build direct-style gold signals from public news on ETF flows and gold-specific catalysts."""
+    docs: List[CollectedDocument] = []
+
+    etf_queries = [
+        "黄金 ETF 资金流 净流入 净流出 when:14d",
+        "gold ETF inflow outflow holdings when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=etf_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="en-US",
+        gl="US",
+        ceid="US:en",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["净流入", "增持", "流入", "inflow", "added", "holdings rise"]
+        neg_words = ["净流出", "减持", "流出", "outflow", "sold", "holdings fall"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="黄金ETF资金流趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，黄金ETF资金流跟踪：近14天净流入/增持信号{pos}条、净流出/减持信号{neg}条，ETF资金流趋势{trend}。",
+                source="Gold ETF Flow Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+
+    safe_haven_queries = [
+        "黄金 避险 升温 降温 when:14d",
+        "gold safe haven demand geopolitical when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=safe_haven_queries,
+        max_items_per_query=5,
+        timeout=timeout,
+        hl="en-US",
+        gl="US",
+        ceid="US:en",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["避险", "升温", "safe haven", "geopolitical risk", "tension"]
+        neg_words = ["降温", "缓和", "ceasefire", "truce", "de-escalation"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="黄金避险需求趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，黄金避险需求跟踪：近14天避险升温信号{pos}条、缓和信号{neg}条，避险需求趋势{trend}。",
+                source="Gold Safe Haven Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+    return docs
+
+
+def collect_bond_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
+    """Build bond direct-style signals from public news on credit events, liquidity and issuance/funding."""
+    docs: List[CollectedDocument] = []
+
+    credit_queries = [
+        "信用债 违约 展期 风险缓释 when:14d",
+        "城投债 信用 风险 违约 展期 when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=credit_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        neg_words = ["违约", "展期", "爆雷", "风险暴露", "下调", "兑付承压"]
+        pos_words = ["风险缓释", "兑付完成", "增信", "纾困", "支持工具", "化解"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "改善" if pos > neg else "承压" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="信用债信用事件趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，信用债信用事件跟踪：近14天风险缓释信号{pos}条、风险暴露信号{neg}条，信用环境{trend}。",
+                source="Bond Credit Event Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+
+    liquidity_queries = [
+        "回购利率 资金面 流动性 债市 when:14d",
+        "同业存单 利率 资金面 债券 when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=liquidity_queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="zh-CN",
+        gl="CN",
+        ceid="CN:zh-Hans",
+        verbose=verbose,
+    )
+    if rows:
+        pos_words = ["宽松", "回落", "改善", "呵护", "投放", "降准", "降息"]
+        neg_words = ["收紧", "抬升", "紧张", "扰动", "上行"]
+        pos = 0
+        neg = 0
+        latest = ""
+        for r in rows:
+            t = (r.title or "").lower()
+            if any(w in t for w in pos_words):
+                pos += 1
+            if any(w in t for w in neg_words):
+                neg += 1
+            d = (r.published_at or "").strip()
+            if d and d > latest:
+                latest = d
+        if not latest:
+            latest = _now_iso()
+        trend = "改善" if pos > neg else "趋紧" if neg > pos else "中性"
+        docs.append(
+            CollectedDocument(
+                title="债市流动性趋势信号",
+                url="https://news.google.com/",
+                content=f"{latest}，债市流动性跟踪：近14天流动性改善信号{pos}条、收紧信号{neg}条，资金面趋势{trend}。",
+                source="Bond Liquidity Signal",
+                source_type="media",
+                source_tier="B",
+                category="top_tier_media",
+                published_at=latest,
+            )
+        )
+    return docs
+
+
 def collect_structured_theme_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
     """Create structured macro/geopolitical signal docs from free news headlines."""
     docs: List[CollectedDocument] = []
