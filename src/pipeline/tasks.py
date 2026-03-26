@@ -12,6 +12,7 @@ from src.collectors.source_collector import (
     collect_bond_china_direct_signal_documents,
     collect_bond_direct_signal_documents,
     collect_central_bank_gold_signal_documents,
+    collect_gold_holdings_direct_signal_documents,
     collect_power_grid_direct_signal_documents,
     collect_rare_earth_direct_signal_documents,
     collect_satellite_direct_signal_documents,
@@ -416,6 +417,8 @@ def load_source_documents(
     collected.extend(central_bank_gold_docs)
     gold_direct_docs = collect_gold_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(gold_direct_docs)
+    gold_holdings_direct_docs = collect_gold_holdings_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
+    collected.extend(gold_holdings_direct_docs)
     bond_direct_docs = collect_bond_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
     collected.extend(bond_direct_docs)
     bond_china_direct_docs = collect_bond_china_direct_signal_documents(timeout=timeout, verbose=verbose_collect)
@@ -461,6 +464,7 @@ def load_source_documents(
     stats_dict["satellite_proxy_docs"] = len(satellite_proxy_docs)
     stats_dict["central_bank_gold_docs"] = len(central_bank_gold_docs)
     stats_dict["gold_direct_docs"] = len(gold_direct_docs)
+    stats_dict["gold_holdings_direct_docs"] = len(gold_holdings_direct_docs)
     stats_dict["bond_direct_docs"] = len(bond_direct_docs)
     stats_dict["bond_china_direct_docs"] = len(bond_china_direct_docs)
     stats_dict["power_grid_direct_docs"] = len(power_grid_direct_docs)
@@ -915,6 +919,7 @@ def _variable_evidence_meta(event_title: str, source: str, source_type: str) -> 
     proxy_markers = ["代理", "proxy", "篮子", "hyg-ief", "tip", "gld", "vix"]
     direct_signal_sources = {
         "gold etf flow signal",
+        "gold holdings signal",
         "gold safe haven signal",
         "central bank gold signal",
         "bond credit event signal",

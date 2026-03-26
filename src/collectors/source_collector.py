@@ -1004,6 +1004,57 @@ def collect_bond_china_direct_signal_documents(timeout: float = 10.0, verbose: b
     return docs
 
 
+
+
+def collect_gold_holdings_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
+    """Build gold holdings/positioning direct-style signals from public ETF/holdings news."""
+    docs: List[CollectedDocument] = []
+    queries = [
+        "gold ETF holdings rise fall SPDR holdings when:14d",
+        "黄金 ETF 持仓 增持 减持 when:14d",
+        "SPDR Gold Shares holdings inflow outflow when:14d",
+    ]
+    rows = collect_google_news_documents(
+        queries=queries,
+        max_items_per_query=6,
+        timeout=timeout,
+        hl="en-US",
+        gl="US",
+        ceid="US:en",
+        verbose=verbose,
+    )
+    if not rows:
+        return docs
+    pos_words = ["holdings rise", "inflow", "added", "增持", "净流入", "持仓增加"]
+    neg_words = ["holdings fall", "outflow", "sold", "减持", "净流出", "持仓下降"]
+    pos = neg = 0
+    latest = ""
+    for r in rows:
+        t = (r.title or "").lower()
+        if any(w in t for w in pos_words):
+            pos += 1
+        if any(w in t for w in neg_words):
+            neg += 1
+        d = (r.published_at or "").strip()
+        if d and d > latest:
+            latest = d
+    latest = latest or _now_iso()
+    trend = "偏强" if pos > neg else "偏弱" if neg > pos else "中性"
+    docs.append(
+        CollectedDocument(
+            title="黄金ETF持仓变化趋势信号",
+            url="https://news.google.com/",
+            content=f"{latest}，黄金ETF持仓变化跟踪：近14天持仓增加/净流入信号{pos}条、持仓下降/净流出信号{neg}条，持仓趋势{trend}。",
+            source="Gold Holdings Signal",
+            source_type="media",
+            source_tier="B",
+            category="top_tier_media",
+            published_at=latest,
+        )
+    )
+    return docs
+
+
 def collect_gold_direct_signal_documents(timeout: float = 10.0, verbose: bool = False) -> List[CollectedDocument]:
     """Build direct-style gold signals from public news on ETF flows and gold-specific catalysts."""
     docs: List[CollectedDocument] = []
